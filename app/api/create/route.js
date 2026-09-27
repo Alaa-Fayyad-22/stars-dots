@@ -5,5 +5,9 @@ export async function POST(req) {
   const hostName = cleanName(name);
   if (!hostName) return Response.json({ error: "Enter your name." }, { status: 400 });
   if (!isFourDigits(secret)) return Response.json({ error: "The secret must be exactly 4 different digits." }, { status: 400 });
-  return Response.json(await createRoom(hostName, secret));
+  try {
+    return Response.json(await createRoom(hostName, secret));
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 }

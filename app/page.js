@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GuessRow, Legend } from "./Board";
-import { savePlayer, post, digitsOnly } from "@/lib/client";
+import { DigitEntry, HowToPlay, Legend } from "./Board";
+import { savePlayer, post } from "@/lib/client";
 
 export default function Home() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
 
   async function create() {
+    if (busy || !hostName.trim() || secret.length !== 4) return;
     setBusy(true); setError({});
     try {
       const { code, playerId } = await post("/api/create", { name: hostName, secret });
@@ -24,8 +25,9 @@ export default function Home() {
   }
 
   async function join() {
-    setBusy(true); setError({});
     const code = joinCode.trim().toUpperCase();
+    if (busy || code.length !== 5 || !joinName.trim()) return;
+    setBusy(true); setError({});
     try {
       const { playerId } = await post("/api/join", { code, name: joinName });
       savePlayer(code, playerId);
@@ -35,37 +37,59 @@ export default function Home() {
 
   return (
     <>
+      <section className="hero">
+        <div className="brand">
+          <span className="brand-pegs" aria-hidden="true">
+            <span className="peg star">★</span>
+            <span className="peg dot" />
+            <span className="peg star">★</span>
+          </span>
+          <h1>Stars &amp; Dots</h1>
+        </div>
+        <p className="muted lead">One person picks a secret 4-digit number. Everyone else races to crack it — no accounts, just a code.</p>
+      </section>
+
       <section>
-        <h1>Stars &amp; Dots</h1>
-        <p className="muted">One person picks a secret 4-digit number. Everyone else races to crack it.</p>
-        <GuessRow guess="1243" stars={2} dots={2} big />
+        <h2>How to play</h2>
+        <HowToPlay />
         <Legend />
       </section>
 
-      <section>
-        <h2>Start a game</h2>
-        <label htmlFor="hn">Your name</label>
-        <input id="hn" value={hostName} onChange={(e) => setHostName(e.target.value)} maxLength={20} autoComplete="nickname" />
-        <label htmlFor="sec">Secret number</label>
-        <input
-          id="sec" className="digits-input" type="password" inputMode="numeric" autoComplete="off"
-          value={secret} onChange={(e) => setSecret(digitsOnly(e.target.value))} placeholder="????"
-        />
-        <p className="small muted" style={{ marginTop: "0.4rem" }}>Only you will see it. Repeated digits are not allowed.</p>
-        <button onClick={create} disabled={busy || !hostName.trim() || secret.length !== 4}>Create game</button>
-        {error.create && <p className="error">{error.create}</p>}
-      </section>
+      <div className="two-up">
+        <section className="panel">
+          <h2>Host a game</h2>
+          <label htmlFor="hn">Your name</label>
+          <input id="hn" value={hostName} onChange={(e) => setHostName(e.target.value)} maxLength={20} autoComplete="nickname" placeholder="e.g. Sam" />
+          <DigitEntry
+            id="sec"
+            label="Secret number"
+            value={secret}
+            onChange={setSecret}
+            mask
+            help="Only you will see it. No repeated digits."
+            onEnter={create}
+          />
+          <button onClick={create} disabled={busy || !hostName.trim() || secret.length !== 4}>Create game</button>
+          {error.create && <p className="error" role="alert">{error.create}</p>}
+        </section>
 
-      <section>
-        <h2>Join a game</h2>
-        <label htmlFor="jc">Game code</label>
-        <input id="jc" className="code-input" value={joinCode} maxLength={5} autoCapitalize="characters" autoComplete="off"
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())} />
-        <label htmlFor="jn">Your name</label>
-        <input id="jn" value={joinName} onChange={(e) => setJoinName(e.target.value)} maxLength={20} autoComplete="nickname" />
-        <button className="secondary" onClick={join} disabled={busy || joinCode.trim().length !== 5 || !joinName.trim()}>Join game</button>
-        {error.join && <p className="error">{error.join}</p>}
-      </section>
+        <section className="panel">
+          <h2>Join a game</h2>
+          <p className="small muted">Got a code or an invite link from the host? Enter it here.</p>
+          <label htmlFor="jc">Game code</label>
+          <input id="jc" className="code-input" value={joinCode} maxLength={5} autoCapitalize="characters" autoComplete="off"
+            placeholder="ABCDE"
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === "Enter" && join()}
+          />
+          <label htmlFor="jn">Your name</label>
+          <input id="jn" value={joinName} onChange={(e) => setJoinName(e.target.value)} maxLength={20} autoComplete="nickname" placeholder="e.g. Alex"
+            onKeyDown={(e) => e.key === "Enter" && join()}
+          />
+          <button className="secondary" onClick={join} disabled={busy || joinCode.trim().length !== 5 || !joinName.trim()}>Join game</button>
+          {error.join && <p className="error" role="alert">{error.join}</p>}
+        </section>
+      </div>
     </>
   );
 }
