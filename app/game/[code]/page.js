@@ -81,6 +81,7 @@ function TopBar({ code, round }) {
         <div className="room-code">{code}</div>
       </div>
       <button className="secondary" onClick={invite}>{copied ? "Link copied" : "Invite"}</button>
+      <Link href="/"><button className="secondary">New game</button></Link>  
     </div>
   );
 }

@@ -51,7 +51,7 @@ export default function Home() {
           id="sec" className="digits-input" type="password" inputMode="numeric" autoComplete="off"
           value={secret} onChange={(e) => setSecret(digitsOnly(e.target.value))} placeholder="????"
         />
-        <p className="small muted" style={{ marginTop: "0.4rem" }}>Only you will see it. Repeated digits are allowed.</p>
+        <p className="small muted" style={{ marginTop: "0.4rem" }}>Only you will see it. Repeated digits are not allowed.</p>
         <button onClick={create} disabled={busy || !hostName.trim() || secret.length !== 4}>Create game</button>
         {error.create && <p className="error">{error.create}</p>}
       </section>
