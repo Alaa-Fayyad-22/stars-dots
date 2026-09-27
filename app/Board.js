@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { digitsOnly } from "@/lib/client";
 
 // A guess shown as 4 tiles with star/dot pegs next to it
@@ -39,7 +40,7 @@ export function Legend() {
 }
 
 // Big-tap on-screen keypad. Digits already in `value` are disabled since a
-// guess can never repeat a digit.
+// guess can never repeat a digit, and 0 is disabled as the first digit.
 export function NumberPad({ value, onChange, disabled }) {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "gap", "0", "back"];
   return (
@@ -61,12 +62,13 @@ export function NumberPad({ value, onChange, disabled }) {
           );
         }
         const used = value.includes(key);
+        const leadingZero = key === "0" && value.length === 0;
         return (
           <button
             key={i}
             type="button"
             className="numpad-key"
-            disabled={disabled || used || value.length >= 4}
+            disabled={disabled || used || leadingZero || value.length >= 4}
             onClick={() => onChange(digitsOnly(value + key))}
             aria-label={`Digit ${key}`}
           >
@@ -109,8 +111,8 @@ export function HowToPlay() {
   return (
     <div className="how-to-play">
       <ol className="how-steps">
-        <li>One person hosts and secretly picks a 4-digit number — no repeated digits, like <strong>3184</strong>.</li>
-        <li>Everyone else takes turns guessing 4-digit numbers (also no repeats).</li>
+        <li>One person hosts and secretly picks a 4-digit number — 4 different digits, not starting with 0, like <strong>3184</strong>.</li>
+        <li>Everyone else takes turns guessing 4-digit numbers (same rule: no repeats, no leading 0).</li>
         <li>Every guess gets stars and dots: a <strong>★ star</strong> for each digit in the exact right spot, a <strong>● dot</strong> for each digit that's correct but in the wrong spot.</li>
         <li>First to guess all 4 in the right spot (★★★★) wins the round.</li>
       </ol>
@@ -157,6 +159,62 @@ export function TurnBanner({ myTurn, waitingFor, winner, iWon, solved, hostName 
     <div className="turn-banner turn-banner--waiting" role="status">
       <span className="turn-banner-icon" aria-hidden="true">⏳</span>
       <span>Waiting for {waitingFor || "the next player"}…</span>
+    </div>
+  );
+}
+
+// Every player's guess history: a tab strip that shows one player at a time
+// on a phone, and side-by-side columns on a wider screen (the tabs are
+// hidden there by CSS, since every panel is shown at once). Your own
+// history is always the first tab/column so it's easy to find.
+export function PlayerHistories({ players, playerId, currentPlayerId }) {
+  const mine = players.find((p) => p.id === playerId);
+  const others = players.filter((p) => p.id !== playerId);
+  const ordered = mine ? [mine, ...others] : players;
+  const [activeId, setActiveId] = useState(playerId || (ordered[0] && ordered[0].id));
+  const activePlayerId = ordered.some((p) => p.id === activeId) ? activeId : ordered[0]?.id;
+
+  return (
+    <div className="history-board">
+      <div className="history-tabs" role="tablist" aria-label="Players">
+        {ordered.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={p.id === activePlayerId}
+            className={`history-tab${p.id === activePlayerId ? " history-tab--active" : ""}`}
+            onClick={() => setActiveId(p.id)}
+          >
+            {p.id === currentPlayerId && <span className="turn-arrow" aria-hidden="true">▶</span>}
+            {p.name}
+            {p.id === playerId ? " (you)" : ""}
+          </button>
+        ))}
+      </div>
+      <div className="history-panels">
+        {ordered.map((p) => (
+          <div key={p.id} className={`history-panel${p.id === activePlayerId ? " history-panel--active" : ""}`}>
+            <div className="history-panel-head">
+              <span>
+                {p.id === currentPlayerId && <span className="turn-arrow" aria-hidden="true">▶</span>}
+                {p.name}
+                {p.id === playerId ? " (you)" : ""}
+              </span>
+              <span className={p.solved ? "solved" : "muted"}>
+                {p.solved ? `Solved in ${p.tries}` : `${p.tries} ${p.tries === 1 ? "try" : "tries"}`}
+              </span>
+            </div>
+            {p.history.length === 0 ? (
+              <p className="muted small">No guesses yet.</p>
+            ) : (
+              [...p.history].reverse().map((h, i) => (
+                <GuessRow key={h.at} guess={h.guess} stars={h.stars} dots={h.dots} num={p.history.length - i} fresh={i === 0} />
+              ))
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

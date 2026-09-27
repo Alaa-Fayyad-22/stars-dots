@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { GuessRow, Legend, DigitEntry, TurnBanner } from "../../Board";
+import { GuessRow, Legend, DigitEntry, TurnBanner, PlayerHistories } from "../../Board";
 import { savePlayer, loadPlayer, post } from "@/lib/client";
 
 const POLL_MS = 2000;
@@ -116,7 +116,6 @@ function PlayerView({ state, code, playerId, onGuess }) {
   const [guess, setGuess] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const history = state.me.history;
   const myTurn = state.currentPlayerId === playerId;
   const current = state.players.find((p) => p.id === state.currentPlayerId);
   const canGuess = myTurn && !state.winner && !state.me.solved;
@@ -162,14 +161,12 @@ function PlayerView({ state, code, playerId, onGuess }) {
         </section>
 
         <section>
-          <h2>Your guesses</h2>
-          {history.length === 0 ? (
-            <p className="muted">Your guesses and their stars and dots will show up here.</p>
-          ) : (
-            [...history].reverse().map((h, i) => (
-              <GuessRow key={h.at} guess={h.guess} stars={h.stars} dots={h.dots} num={history.length - i} fresh={i === 0} />
-            ))
-          )}
+          <h2>Everyone's guesses</h2>
+          <PlayerHistories
+            players={state.players}
+            playerId={playerId}
+            currentPlayerId={state.winner ? null : state.currentPlayerId}
+          />
         </section>
       </div>
 

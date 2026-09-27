@@ -66,7 +66,7 @@ export default function Home() {
             value={secret}
             onChange={setSecret}
             mask
-            help="Only you will see it. No repeated digits."
+            help="Only you will see it. 4 different digits, not starting with 0."
             onEnter={create}
           />
           <button onClick={create} disabled={busy || !hostName.trim() || secret.length !== 4}>Create game</button>
