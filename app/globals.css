@@ -1,0 +1,109 @@
+:root {
+  --paper: #eaf0ec;
+  --ink: #15231d;
+  --muted: #56675f;
+  --line: #c9d6ce;
+  --tile: #ffffff;
+  --star: #d99a1e;
+  --dot: #3e6f8e;
+  --danger: #b8412c;
+  --ui: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --digits: "Chivo Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+*, *::before, *::after { box-sizing: inherit; }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+.shell { max-width: 30rem; margin: 0 auto; padding: 1.5rem 1.1rem 3rem; }
+
+h1 { font-size: 2.6rem; line-height: 1; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 0.4rem; }
+h2 { font-size: 1.25rem; font-weight: 800; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+p { margin: 0 0 0.75rem; }
+.muted { color: var(--muted); }
+.small { font-size: 0.9rem; }
+
+section { padding: 1.4rem 0; border-top: 2px solid var(--ink); }
+section:first-of-type { border-top: 0; }
+
+label { display: block; font-weight: 600; margin: 0.8rem 0 0.3rem; }
+input {
+  width: 100%;
+  font: inherit;
+  padding: 0.75rem 0.9rem;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--tile);
+  color: var(--ink);
+}
+input.code-input { font-family: var(--digits); font-size: 1.6rem; letter-spacing: 0.4em; text-transform: uppercase; }
+input.digits-input { font-family: var(--digits); font-size: 2rem; letter-spacing: 0.55em; text-align: center; padding-left: 1.4rem; }
+
+button {
+  font: inherit;
+  font-weight: 700;
+  width: 100%;
+  margin-top: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+}
+button.secondary { background: transparent; color: var(--ink); }
+button:disabled { opacity: 0.5; cursor: default; }
+:focus-visible { outline: 3px solid var(--star); outline-offset: 2px; }
+
+.error { color: var(--danger); font-weight: 600; margin-top: 0.6rem; }
+
+/* The board: digit tiles + pegs */
+.row { display: flex; align-items: center; gap: 0.9rem; padding: 0.35rem 0; }
+.tiles { display: flex; gap: 0.3rem; }
+.tile {
+  width: 2.4rem; height: 2.8rem;
+  display: grid; place-items: center;
+  font-family: var(--digits); font-weight: 700; font-size: 1.5rem;
+  background: var(--tile);
+  border: 2px solid var(--ink);
+  border-radius: 7px;
+}
+.row.big .tile { width: 3.4rem; height: 4rem; font-size: 2.2rem; }
+.pegs { display: grid; grid-template-columns: repeat(2, 1.35rem); gap: 0.15rem; }
+.peg { width: 1.35rem; height: 1.35rem; display: grid; place-items: center; font-size: 1.25rem; line-height: 1; }
+.peg.star { color: var(--star); }
+.peg.dot::before { content: ""; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--dot); }
+.peg.empty::before { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--line); }
+.try-num { font-family: var(--digits); color: var(--muted); width: 1.6rem; text-align: right; font-size: 0.85rem; }
+
+.legend { display: flex; flex-direction: column; gap: 0.2rem; margin: 0.6rem 0 0; font-size: 0.95rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.room-code { font-family: var(--digits); font-weight: 700; font-size: 2rem; letter-spacing: 0.2em; }
+.topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 0.5rem; }
+.topbar button { width: auto; margin: 0; padding: 0.55rem 0.9rem; }
+
+.banner { background: var(--ink); color: var(--paper); border-radius: 12px; padding: 1rem 1.1rem; margin: 0.5rem 0 1rem; }
+.banner strong { color: var(--star); }
+
+.players { list-style: none; margin: 0; padding: 0; }
+.players > li { padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+.players .who { display: flex; justify-content: space-between; font-weight: 600; }
+.players .who .solved { color: var(--star); }
+
+.secret-box { display: flex; align-items: center; gap: 0.8rem; }
+.secret-box button { width: auto; margin: 0; padding: 0.5rem 0.8rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .row.fresh { animation: drop 0.35s ease-out; }
+  @keyframes drop { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
