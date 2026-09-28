@@ -13,6 +13,35 @@ import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicate
 const POLL_MS = 2000;
 
 const MODE_LABEL = { rotating: "Rotating host", computer: "Computer host" };
+// A short beep for "your turn". Phones only allow sound after the player
+// has tapped the page at least once, so the sound is unlocked on the
+// first tap (see unlockAudio below).
+let audioCtx = null;
+
+function unlockAudio() {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  } catch {}
+}
+
+function playBeep() {
+  try {
+    if (!audioCtx || audioCtx.state !== "running") return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+  } catch {}
+}
 
 export default function Game() {
   const code = String(useParams().code || "").toUpperCase();
@@ -42,7 +71,14 @@ export default function Game() {
   useEffect(() => {
     if (!ready) return;
     refresh();
-    const t = setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+    // Every 2 seconds while visible; every 10 seconds while the tab is in the
+// background, so "Your turn!" can still show in the tab title without
+// sending too many requests.
+let tick = 0;
+const t = setInterval(() => {
+  tick++;
+  if (!document.hidden || tick % 5 === 0) refresh();
+}, POLL_MS);
     return () => clearInterval(t);
   }, [ready, refresh]);
 
@@ -287,6 +323,30 @@ function GameView({ state, code, playerId, onAction }) {
   useEffect(() => {
     if (iAmHostThisRound) setSheetOpen(false);
   }, [iAmHostThisRound]);
+
+  // "Your turn" alert: vibrate (Android), beep, and change the tab title
+// the moment the turn passes to this player.
+const wasMyTurn = useRef(false);
+const originalTitle = useRef(null);
+
+useEffect(() => {
+  window.addEventListener("pointerdown", unlockAudio);
+  return () => window.removeEventListener("pointerdown", unlockAudio);
+}, []);
+
+useEffect(() => {
+  if (canGuess && !wasMyTurn.current) {
+    try { navigator.vibrate?.([200, 100, 200]); } catch {}
+    playBeep();
+  }
+  wasMyTurn.current = canGuess;
+}, [canGuess]);
+
+useEffect(() => {
+  if (originalTitle.current === null) originalTitle.current = document.title;
+  document.title = canGuess ? "▶ Your turn! · Stars & Dots" : originalTitle.current;
+  return () => { document.title = originalTitle.current; };
+}, [canGuess]);
 
   const { notes, toggleDigit, setDraft, clearDraft, clear } = usePlayerNotes(code, state.round, digits);
   const dup = guess.length === digits ? findDuplicateGuess(state.players, guess, playerId) : null;
