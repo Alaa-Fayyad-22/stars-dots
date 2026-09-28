@@ -200,89 +200,255 @@ button:not(:disabled):active { transform: scale(0.97); }
 .players .who { display: flex; justify-content: space-between; align-items: center; font-weight: 600; gap: 0.4rem; }
 .players .who .solved { color: var(--star); }
 .players .who--turn { font-weight: 800; }
-.turn-arrow { color: var(--star); margin-right: 0.3rem; }
+.turn-arrow { color: var(--star); margin-right: 0.3rem; flex-shrink: 0; }
+.who-name { display: flex; align-items: center; min-width: 0; }
+.who-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-tries { flex-shrink: 0; }
 
 .secret-box { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .secret-box button { width: auto; margin: 0; padding: 0.5rem 0.8rem; min-height: 2.6rem; }
 
-/* Digit entry: input + on-screen keypad */
+/* Digit entry: input only (no on-screen keypad) */
 .digit-entry { margin-top: 0.4rem; }
 .digit-entry-help { margin-top: 0.4rem; }
-.numpad {
-  margin-top: 0.9rem;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.55rem;
-}
-.numpad-key {
-  margin: 0;
-  min-height: 3.4rem;
-  font-size: 1.4rem;
-  font-family: var(--digits);
-  border-radius: 12px;
-}
-.numpad-back { font-size: 1.2rem; }
-.numpad-gap { display: block; }
 
-@media (min-width: 480px) {
-  .numpad-key { min-height: 3.8rem; }
-}
-
-/* Everyone's guess history: tabs on phone, side-by-side columns on wider screens */
-.history-tabs {
-  display: flex;
-  gap: 0.4rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.6rem;
-}
-.history-tab {
-  flex: 0 0 auto;
-  width: auto;
-  margin: 0;
-  padding: 0.5rem 0.9rem;
-  min-height: 2.6rem;
-  border-radius: 999px;
-  background: transparent;
-  border: 2px solid var(--line);
-  color: var(--ink);
+/* Combined guess feed: every guess from every player, newest first */
+.guess-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+.guess-feed-item { padding-bottom: 0.8rem; border-bottom: 1px solid var(--line); min-width: 0; }
+.guess-feed-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.guess-feed-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; margin-bottom: 0.3rem; }
+.guess-feed-name {
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.history-tab--active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.guess-feed-name--mine { color: var(--star); }
+.guess-feed-try { flex-shrink: 0; }
 
-.history-panel { display: none; }
-.history-panel--active { display: block; }
-.history-panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.6rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--line);
+/* Digit notepad + position grid marks reflected on guess tiles */
+.tile--cross { opacity: 0.45; text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 2px; }
+.tile--sure { background: var(--star); border-color: var(--star); color: #201404; }
+
+/* Player notes: private, manual, never sent to the server */
+.notes-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+.notes-head h3 { font-size: 1.05rem; font-weight: 800; margin: 0; }
+.notes-clear { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 2.4rem; font-size: 0.9rem; }
+.notes-hint { margin: 0.3rem 0 0.8rem; }
+
+.notepad-digits {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
 }
-.history-panel-head .solved { color: var(--star); }
+.notepad-digit {
+  position: relative;
+  margin: 0;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.4rem;
+  font-family: var(--digits);
+  font-size: 1.2rem;
+  border-radius: 10px;
+  background: var(--tile);
+  color: var(--ink);
+}
+.notepad-digit--cross { opacity: 0.55; text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 2px; }
+.notepad-digit--sure { background: var(--star); border-color: var(--star); color: #201404; }
+.notepad-digit-mark {
+  position: absolute;
+  top: 1px;
+  right: 4px;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.notepad-digit--cross .notepad-digit-mark { color: var(--danger); }
+.notepad-digit--sure .notepad-digit-mark { color: #201404; }
+
+.notepad-legend { margin: 0.7rem 0 0; }
+
+/* My draft: 4 boxes styled like tiles but visibly not a real guess input */
+.sheet-open { margin-bottom: 0.5rem; }
+
+.draft-boxes-wrap { display: flex; flex-direction: column; gap: 0.7rem; }
+.draft-boxes { display: flex; gap: 0.5rem; }
+.draft-box {
+  width: 2.4rem;
+  height: 2.8rem;
+  padding: 0;
+  min-height: 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--digits);
+  font-weight: 700;
+  font-size: 1.5rem;
+  border: 2px dashed var(--muted);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+}
+.draft-box::placeholder { color: var(--muted); }
+.draft-box--faded { opacity: 0.5; text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 2px; }
+
+.draft-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.draft-actions button { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 2.4rem; font-size: 0.9rem; }
+.draft-use { border-color: var(--star); color: var(--star); }
+
+/* Compact draft boxes, used inside the scratch sheet */
+.draft-box--compact {
+  width: 1.5rem;
+  height: 1.6rem;
+  font-size: 0.95rem;
+  border-radius: 4px;
+  border-width: 1px;
+}
+.draft-boxes-wrap--compact { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+.draft-boxes-wrap--compact .draft-boxes { gap: 0.15rem; }
+.draft-boxes-wrap--compact .draft-actions { gap: 0.4rem; }
+.draft-boxes-wrap--compact .draft-actions button { padding: 0.3rem 0.6rem; min-height: 1.8rem; font-size: 0.8rem; margin: 0; }
+
+/* Scratch sheet: a dense, paper-styled dialog */
+.sheet {
+  --sheet-bg: #fbf6e6;
+  --sheet-ink: #2b2a1c;
+  --sheet-line: #ddd2ac;
+  --sheet-muted: #7c7457;
+  padding: 0;
+  margin: 0;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  background: var(--sheet-bg);
+  color: var(--sheet-ink);
+  overflow: hidden;
+}
+/* A <dialog> without [open] is hidden by the UA stylesheet; only lay it out
+   as flex once shown, so it doesn't render (or trap focus/clicks) while closed. */
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+.sheet::backdrop { background: rgba(10, 8, 2, 0.55); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sheet {
+    --sheet-bg: #1b190f;
+    --sheet-ink: #ece4c8;
+    --sheet-line: #3c3722;
+    --sheet-muted: #9c9374;
+  }
+}
+:root[data-theme="dark"] .sheet {
+  --sheet-bg: #1b190f;
+  --sheet-ink: #ece4c8;
+  --sheet-line: #3c3722;
+  --sheet-muted: #9c9374;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: calc(0.6rem + env(safe-area-inset-top, 0px)) 0.7rem 0.5rem;
+  border-bottom: 1px solid var(--sheet-line);
+}
+.sheet-head h2 { margin: 0; font-size: 1.05rem; }
+.sheet-close {
+  width: 2.2rem;
+  height: 2.2rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  border-color: var(--sheet-ink);
+  color: var(--sheet-ink);
+  background: transparent;
+}
+
+.sheet-notepad {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+  padding: 0.4rem 0.2rem;
+  border-bottom: 1px solid var(--sheet-line);
+}
+.sheet-notepad-digit {
+  flex: 1 1 0;
+  min-width: 36px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--digits);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 1px solid var(--sheet-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sheet-ink);
+}
+.sheet-notepad-digit--cross { opacity: 0.5; text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 2px; }
+.sheet-notepad-digit--sure { background: var(--star); border-color: var(--star); color: #201404; }
+
+.sheet-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0.5rem;
+}
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.18rem 0;
+  border-bottom: 1px solid var(--sheet-line);
+  font-family: var(--digits);
+  font-size: 0.82rem;
+  line-height: 1.3rem;
+  white-space: nowrap;
+}
+.sheet-col { flex-shrink: 0; }
+.sheet-num { width: 1.6rem; text-align: right; color: var(--sheet-muted); }
+.sheet-name {
+  width: 4.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ui);
+  font-weight: 600;
+}
+.sheet-digits { display: flex; gap: 1px; }
+.sheet-digit-cell { width: 1.3rem; text-align: center; }
+.sheet-digit-cell--cross { opacity: 0.45; text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 2px; }
+.sheet-digit-cell--sure { background: var(--star); color: #201404; border-radius: 3px; }
+.sheet-result { display: flex; gap: 1px; }
+.sheet-star { color: var(--star); }
+.sheet-dot { color: var(--dot); }
+.sheet-dash { color: var(--sheet-muted); }
+
+.sheet-draft {
+  flex-shrink: 0;
+  padding: 0.4rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  border-top: 2px solid var(--sheet-line);
+  background: var(--sheet-bg);
+}
+.sheet-draft-row { align-items: flex-start; border-bottom: 0; }
+.sheet-draft .sheet-name { font-family: var(--ui); }
+.sheet-draft .draft-box--compact { border-color: var(--sheet-muted); color: var(--sheet-ink); }
+.sheet-draft .draft-actions button { border-color: var(--sheet-ink); color: var(--sheet-ink); }
+.sheet-draft .draft-use { border-color: var(--star); color: var(--star); }
 
 @media (min-width: 720px) {
-  .history-tabs { display: none; }
-  .history-panels {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(200px, 1fr);
-    gap: 0 1.6rem;
-    overflow-x: auto;
-    padding-bottom: 0.5rem;
+  .sheet {
+    width: min(92vw, 44rem);
+    height: min(88vh, 42rem);
+    margin: auto;
+    border: 2px solid var(--sheet-line);
+    border-radius: 16px;
   }
-  .history-panel {
-    display: block;
-    min-width: 0;
-    padding-right: 1.6rem;
-    border-right: 1px solid var(--line);
-  }
-  .history-panel:last-child { border-right: 0; padding-right: 0; }
+  .sheet-head { padding-top: 0.6rem; }
 }
 
 /* Responsive two-column layout for tablet and up */

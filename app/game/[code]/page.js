@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { GuessRow, Legend, DigitEntry, TurnBanner, PlayerHistories } from "../../Board";
-import { savePlayer, loadPlayer, post } from "@/lib/client";
+import { GuessRow, Legend, DigitEntry, TurnBanner, GuessFeed, PlayerNotes, DraftBoxes, ScratchSheet } from "../../Board";
+import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly } from "@/lib/client";
 
 const POLL_MS = 2000;
 
@@ -116,9 +116,11 @@ function PlayerView({ state, code, playerId, onGuess }) {
   const [guess, setGuess] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const myTurn = state.currentPlayerId === playerId;
   const current = state.players.find((p) => p.id === state.currentPlayerId);
   const canGuess = myTurn && !state.winner && !state.me.solved;
+  const { notes, toggleDigit, setDraft, clearDraft, clear } = usePlayerNotes(code, state.round);
 
   async function submit() {
     if (busy || guess.length !== 4 || !canGuess) return;
@@ -126,6 +128,10 @@ function PlayerView({ state, code, playerId, onGuess }) {
     try { await post("/api/guess", { code, playerId, guess }); setGuess(""); await onGuess(); }
     catch (e) { setError(e.message); }
     setBusy(false);
+  }
+
+  function useDraftAsGuess(draftString) {
+    setGuess(digitsOnly(draftString));
   }
 
   return (
@@ -140,6 +146,9 @@ function PlayerView({ state, code, playerId, onGuess }) {
             solved={state.me.solved && !state.winner}
             hostName={state.hostName}
           />
+          <button type="button" className="secondary sheet-open" onClick={() => setSheetOpen(true)}>
+            Scratch sheet
+          </button>
           {!state.winner && !state.me.solved && (
             <>
               <DigitEntry
@@ -161,21 +170,45 @@ function PlayerView({ state, code, playerId, onGuess }) {
         </section>
 
         <section>
-          <h2>Everyone's guesses</h2>
-          <PlayerHistories
-            players={state.players}
-            playerId={playerId}
-            currentPlayerId={state.winner ? null : state.currentPlayerId}
+          <PlayerNotes notes={notes} onToggleDigit={toggleDigit} onClear={clear} />
+        </section>
+
+        <section>
+          <h3>My draft</h3>
+          <p className="small muted notes-hint">Your own scratch guess — doesn't do anything until you use it.</p>
+          <DraftBoxes
+            draft={notes.draft}
+            digitNotes={notes.digits}
+            onChangeDraft={setDraft}
+            onClearDraft={clearDraft}
+            onUseAsGuess={useDraftAsGuess}
           />
         </section>
-      </div>
 
-      <div className="col-side">
         <section>
           <h2>Players</h2>
           <PlayerList players={state.players} playerId={playerId} currentPlayerId={state.winner ? null : state.currentPlayerId} />
         </section>
       </div>
+
+      <div className="col-side">
+        <section>
+          <h2>Everyone's guesses</h2>
+          <GuessFeed players={state.players} playerId={playerId} digitNotes={notes.digits} />
+        </section>
+      </div>
+
+      <ScratchSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        players={state.players}
+        playerId={playerId}
+        notes={notes}
+        onToggleDigit={toggleDigit}
+        onChangeDraft={setDraft}
+        onClearDraft={clearDraft}
+        onUseAsGuess={(d) => { useDraftAsGuess(d); setSheetOpen(false); }}
+      />
     </>
   );
 }
@@ -246,19 +279,7 @@ function HostView({ state, code, playerId, onAction }) {
             </div>
           ) : (
             <>
-              <ul className="players">
-                {state.players.map((p) => (
-                  <li key={p.id}>
-                    <div className="who">
-                      <span>{p.id === state.currentPlayerId && !state.winner ? <span className="turn-arrow" aria-hidden="true">▶</span> : null}{p.name}</span>
-                      <span className={p.solved ? "solved" : "muted"}>{p.solved ? `Solved in ${p.tries}` : `${p.tries} ${p.tries === 1 ? "try" : "tries"}`}</span>
-                    </div>
-                    {p.history.slice(-5).reverse().map((h) => (
-                      <GuessRow key={h.at} guess={h.guess} stars={h.stars} dots={h.dots} />
-                    ))}
-                  </li>
-                ))}
-              </ul>
+              <PlayerList players={state.players} playerId={null} currentPlayerId={state.winner ? null : state.currentPlayerId} />
               {!state.winner && (
                 <>
                   <button className="secondary" onClick={skipTurn} disabled={skipBusy}>
@@ -271,6 +292,13 @@ function HostView({ state, code, playerId, onAction }) {
             </>
           )}
         </section>
+
+        {state.players.length > 0 && (
+          <section>
+            <h2>All guesses</h2>
+            <GuessFeed players={state.players} />
+          </section>
+        )}
       </div>
     </>
   );
@@ -284,11 +312,11 @@ function PlayerList({ players, playerId, currentPlayerId }) {
     <ul className="players">
       {players.map((p) => (
         <li key={p.id} className={`who${p.id === currentPlayerId ? " who--turn" : ""}`}>
-          <span>
+          <span className="who-name">
             {p.id === currentPlayerId ? <span className="turn-arrow" aria-hidden="true">▶</span> : null}
-            {p.name}{p.id === playerId ? " (you)" : ""}
+            <span className="who-name-text">{p.name}{p.id === playerId ? " (you)" : ""}</span>
           </span>
-          <span className={p.solved ? "solved" : "muted"}>
+          <span className={`who-tries ${p.solved ? "solved" : "muted"}`}>
             {p.solved ? `Solved in ${p.tries}` : `${p.tries} ${p.tries === 1 ? "try" : "tries"}`}
           </span>
         </li>

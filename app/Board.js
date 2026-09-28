@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { digitsOnly } from "@/lib/client";
+import { useEffect, useRef } from "react";
+import { digitsOnly, isValidNumber } from "@/lib/client";
 
-// A guess shown as 4 tiles with star/dot pegs next to it
+// A guess shown as 4 tiles with star/dot pegs next to it. `digitNotes` (from
+// the digit notepad) optionally fades/highlights individual digits — it
+// never changes the pegs.
 export function Pegs({ stars, dots }) {
   const pegs = [];
   for (let i = 0; i < 4; i++) {
@@ -16,14 +18,19 @@ export function Pegs({ stars, dots }) {
   );
 }
 
-export function GuessRow({ guess, stars, dots, num, big, fresh }) {
+export function GuessRow({ guess, stars, dots, num, big, fresh, digitNotes }) {
   return (
     <div className={`row${big ? " big" : ""}${fresh ? " fresh" : ""}`}>
       {num != null && <span className="try-num">{num}</span>}
       <span className="tiles">
-        {guess.split("").map((d, i) => (
-          <span key={i} className="tile">{d}</span>
-        ))}
+        {guess.split("").map((d, i) => {
+          const mark = digitNotes?.[d];
+          return (
+            <span key={i} className={`tile${mark ? ` tile--${mark}` : ""}`}>
+              {d}
+            </span>
+          );
+        })}
       </span>
       {stars != null && <Pegs stars={stars} dots={dots} />}
     </div>
@@ -39,50 +46,8 @@ export function Legend() {
   );
 }
 
-// Big-tap on-screen keypad. Digits already in `value` are disabled since a
-// guess can never repeat a digit, and 0 is disabled as the first digit.
-export function NumberPad({ value, onChange, disabled }) {
-  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "gap", "0", "back"];
-  return (
-    <div className="numpad" role="group" aria-label="Digit keypad">
-      {keys.map((key, i) => {
-        if (key === "gap") return <span key={i} className="numpad-gap" aria-hidden="true" />;
-        if (key === "back") {
-          return (
-            <button
-              key={i}
-              type="button"
-              className="numpad-key numpad-back"
-              disabled={disabled || !value.length}
-              onClick={() => onChange(value.slice(0, -1))}
-              aria-label="Delete last digit"
-            >
-              ⌫
-            </button>
-          );
-        }
-        const used = value.includes(key);
-        const leadingZero = key === "0" && value.length === 0;
-        return (
-          <button
-            key={i}
-            type="button"
-            className="numpad-key"
-            disabled={disabled || used || leadingZero || value.length >= 4}
-            onClick={() => onChange(digitsOnly(value + key))}
-            aria-label={`Digit ${key}`}
-          >
-            {key}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// Text input (for typing/pasting on a real keyboard) paired with the on-screen
-// keypad (for big, easy taps on a phone). Both write through digitsOnly so
-// repeats never make it into the value.
+// Text input for the secret / a guess. Both typing and pasting go through
+// digitsOnly so repeats and a leading 0 never make it into the value.
 export function DigitEntry({ id, label, value, onChange, disabled, mask, autoFocus, onEnter, help }) {
   return (
     <div className="digit-entry">
@@ -101,7 +66,6 @@ export function DigitEntry({ id, label, value, onChange, disabled, mask, autoFoc
         onKeyDown={(e) => e.key === "Enter" && onEnter && onEnter()}
       />
       {help && <p className="small muted digit-entry-help">{help}</p>}
-      <NumberPad value={value} onChange={onChange} disabled={disabled} />
     </div>
   );
 }
@@ -163,58 +127,317 @@ export function TurnBanner({ myTurn, waitingFor, winner, iWon, solved, hostName 
   );
 }
 
-// Every player's guess history: a tab strip that shows one player at a time
-// on a phone, and side-by-side columns on a wider screen (the tabs are
-// hidden there by CSS, since every panel is shown at once). Your own
-// history is always the first tab/column so it's easy to find.
-export function PlayerHistories({ players, playerId, currentPlayerId }) {
-  const mine = players.find((p) => p.id === playerId);
-  const others = players.filter((p) => p.id !== playerId);
-  const ordered = mine ? [mine, ...others] : players;
-  const [activeId, setActiveId] = useState(playerId || (ordered[0] && ordered[0].id));
-  const activePlayerId = ordered.some((p) => p.id === activeId) ? activeId : ordered[0]?.id;
+// Every guess from every player, newest first, in one list. Used by both the
+// player view (own guesses labeled "You" and colored) and the host view
+// (nobody is "mine" there, so playerId is just omitted).
+export function GuessFeed({ players, playerId, digitNotes }) {
+  const all = [];
+  for (const p of players) {
+    p.history.forEach((h, i) => {
+      all.push({
+        key: `${p.id}-${h.at}`,
+        playerId: p.id,
+        name: p.name,
+        tryNum: i + 1,
+        guess: h.guess,
+        stars: h.stars,
+        dots: h.dots,
+        at: h.at,
+      });
+    });
+  }
+  all.sort((a, b) => b.at - a.at);
+
+  if (all.length === 0) {
+    return <p className="muted">Guesses will show up here as players take their turns.</p>;
+  }
 
   return (
-    <div className="history-board">
-      <div className="history-tabs" role="tablist" aria-label="Players">
-        {ordered.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            role="tab"
-            aria-selected={p.id === activePlayerId}
-            className={`history-tab${p.id === activePlayerId ? " history-tab--active" : ""}`}
-            onClick={() => setActiveId(p.id)}
-          >
-            {p.id === currentPlayerId && <span className="turn-arrow" aria-hidden="true">▶</span>}
-            {p.name}
-            {p.id === playerId ? " (you)" : ""}
-          </button>
-        ))}
-      </div>
-      <div className="history-panels">
-        {ordered.map((p) => (
-          <div key={p.id} className={`history-panel${p.id === activePlayerId ? " history-panel--active" : ""}`}>
-            <div className="history-panel-head">
-              <span>
-                {p.id === currentPlayerId && <span className="turn-arrow" aria-hidden="true">▶</span>}
-                {p.name}
-                {p.id === playerId ? " (you)" : ""}
+    <ul className="guess-feed">
+      {all.map((g, i) => {
+        const mine = g.playerId === playerId;
+        return (
+          <li key={g.key} className="guess-feed-item">
+            <div className="guess-feed-head">
+              <span className={`guess-feed-name${mine ? " guess-feed-name--mine" : ""}`} title={g.name}>
+                {mine ? "You" : g.name}
               </span>
-              <span className={p.solved ? "solved" : "muted"}>
-                {p.solved ? `Solved in ${p.tries}` : `${p.tries} ${p.tries === 1 ? "try" : "tries"}`}
-              </span>
+              <span className="guess-feed-try small muted">Try {g.tryNum}</span>
             </div>
-            {p.history.length === 0 ? (
-              <p className="muted small">No guesses yet.</p>
-            ) : (
-              [...p.history].reverse().map((h, i) => (
-                <GuessRow key={h.at} guess={h.guess} stars={h.stars} dots={h.dots} num={p.history.length - i} fresh={i === 0} />
-              ))
-            )}
-          </div>
-        ))}
+            <GuessRow guess={g.guess} stars={g.stars} dots={g.dots} fresh={i === 0} digitNotes={digitNotes} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+const EMPTY_DRAFT = ["", "", "", ""];
+
+function markSymbol(state) {
+  return state === "cross" ? "✕" : state === "sure" ? "✓" : "";
+}
+
+function markStateLabel(state) {
+  return state === "cross" ? "marked not in the number" : state === "sure" ? "marked definitely in the number" : "not marked";
+}
+
+// Private, manual note-taking for players only: a digit notepad. Nothing
+// here ever computes or suggests an answer — every mark is a plain tap the
+// player makes themselves.
+export function PlayerNotes({ notes, onToggleDigit, onClear }) {
+  return (
+    <div className="notes">
+      <div className="notes-head">
+        <h3>Your notes</h3>
+        <button type="button" className="secondary notes-clear" onClick={onClear}>Clear notes</button>
+      </div>
+      <p className="small muted notes-hint">Private to you — tap a digit to mark it.</p>
+
+      <div className="notepad-digits" role="group" aria-label="Digit notes">
+        {DIGITS.map((d) => {
+          const state = notes.digits[d];
+          return (
+            <button
+              key={d}
+              type="button"
+              className={`notepad-digit${state ? ` notepad-digit--${state}` : ""}`}
+              onClick={() => onToggleDigit(d)}
+              aria-label={`Digit ${d}, ${markStateLabel(state)}`}
+            >
+              <span className="notepad-digit-num">{d}</span>
+              {state && <span className="notepad-digit-mark" aria-hidden="true">{markSymbol(state)}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="legend muted notepad-legend">
+        <span>✕ not in the number</span>
+        <span>✓ definitely in the number</span>
+      </p>
+    </div>
+  );
+}
+
+// A compact, single-line version of the digit notepad for the scratch
+// sheet. Same notes state as the main notepad — marks made here show up
+// there and vice versa.
+function CompactNotepad({ notes, onToggleDigit }) {
+  return (
+    <div className="sheet-notepad" role="group" aria-label="Digit notes">
+      {DIGITS.map((d) => {
+        const state = notes.digits[d];
+        return (
+          <button
+            key={d}
+            type="button"
+            className={`sheet-notepad-digit${state ? ` sheet-notepad-digit--${state}` : ""}`}
+            onClick={() => onToggleDigit(d)}
+            aria-label={`Digit ${d}, ${markStateLabel(state)}`}
+          >
+            {d}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// The 4-box "draft number" scratchpad, reused by both the main player view
+// and the scratch sheet. It's a memory aid only: it never validates while
+// editing, and never computes or suggests an answer.
+export function DraftBoxes({ draft, digitNotes, onChangeDraft, onClearDraft, onUseAsGuess, idPrefix = "draft", compact }) {
+  const refs = useRef([]);
+  const valid = draft.every(Boolean) && isValidNumber(draft.join(""));
+
+  function commit(index, char) {
+    const next = [...draft];
+    next[index] = char;
+    onChangeDraft(next);
+  }
+
+  function handleChange(index, e) {
+    const digitsIn = e.target.value.replace(/\D/g, "");
+    const char = digitsIn.slice(-1) || "";
+    commit(index, char);
+    if (char && index < 3) refs.current[index + 1]?.focus();
+  }
+
+  function handleKeyDown(index, e) {
+    if (e.key === "Backspace" && !draft[index] && index > 0) {
+      e.preventDefault();
+      refs.current[index - 1]?.focus();
+    }
+  }
+
+  function handlePaste(e) {
+    e.preventDefault();
+    const text = e.clipboardData?.getData("text") || "";
+    const chars = text.replace(/\D/g, "").slice(0, 4).split("");
+    if (!chars.length) return;
+    const next = [...EMPTY_DRAFT];
+    chars.forEach((c, i) => { next[i] = c; });
+    onChangeDraft(next);
+    refs.current[Math.min(chars.length, 3)]?.focus();
+  }
+
+  return (
+    <div className={`draft-boxes-wrap${compact ? " draft-boxes-wrap--compact" : ""}`}>
+      <div className="draft-boxes" role="group" aria-label="Draft number">
+        {draft.map((val, i) => {
+          const faded = !!val && digitNotes?.[val] === "cross";
+          return (
+            <input
+              key={i}
+              ref={(el) => { refs.current[i] = el; }}
+              id={`${idPrefix}-${i}`}
+              className={`draft-box${compact ? " draft-box--compact" : ""}${faded ? " draft-box--faded" : ""}`}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={1}
+              value={val}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => handleChange(i, e)}
+              onKeyDown={(e) => handleKeyDown(i, e)}
+              onPaste={handlePaste}
+              aria-label={`Position ${i + 1}`}
+            />
+          );
+        })}
+      </div>
+      <div className="draft-actions">
+        <button type="button" className="secondary draft-clear" onClick={onClearDraft}>Clear draft</button>
+        {valid && (
+          <button type="button" className="secondary draft-use" onClick={() => onUseAsGuess(draft.join(""))}>
+            Use as guess
+          </button>
+        )}
       </div>
     </div>
+  );
+}
+
+// A dense, paper-styled dialog: every guess from every player in one
+// scannable table, the same digit notepad, and the draft pinned at the
+// bottom. It only ever displays existing state and the player's own notes —
+// nothing here computes or reveals anything about the secret.
+export function ScratchSheet({ open, onClose, players, playerId, notes, onToggleDigit, onChangeDraft, onClearDraft, onUseAsGuess }) {
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+  const listRef = useRef(null);
+  const pinnedRef = useRef(true);
+
+  useEffect(() => {
+    const dlg = dialogRef.current;
+    if (!dlg) return;
+    if (open && !dlg.open) dlg.showModal();
+    if (!open && dlg.open) dlg.close();
+  }, [open]);
+
+  useEffect(() => {
+    const dlg = dialogRef.current;
+    if (!dlg) return;
+    const handleCancel = (e) => { e.preventDefault(); onClose(); };
+    const handleClose = () => onClose();
+    dlg.addEventListener("cancel", handleCancel);
+    dlg.addEventListener("close", handleClose);
+    return () => {
+      dlg.removeEventListener("cancel", handleCancel);
+      dlg.removeEventListener("close", handleClose);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (open) {
+      pinnedRef.current = true;
+      closeRef.current?.focus();
+    }
+  }, [open]);
+
+  const all = [];
+  for (const p of players) {
+    p.history.forEach((h, i) => {
+      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
+    });
+  }
+  all.sort((a, b) => a.at - b.at);
+
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    if (list && pinnedRef.current) list.scrollTop = list.scrollHeight;
+  }, [open, all.length]);
+
+  function handleScroll() {
+    const list = listRef.current;
+    if (!list) return;
+    pinnedRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < 32;
+  }
+
+  return (
+    <dialog ref={dialogRef} className="sheet">
+      <div className="sheet-head">
+        <h2>Scratch sheet</h2>
+        <button type="button" ref={closeRef} className="secondary sheet-close" onClick={onClose} aria-label="Close scratch sheet">✕</button>
+      </div>
+
+      <CompactNotepad notes={notes} onToggleDigit={onToggleDigit} />
+
+      <div className="sheet-list" ref={listRef} onScroll={handleScroll}>
+        {all.length === 0 ? (
+          <p className="muted small">No guesses yet.</p>
+        ) : (
+          all.map((g, i) => {
+            const mine = g.playerId === playerId;
+            const noPegs = g.stars === 0 && g.dots === 0;
+            return (
+              <div key={g.key} className="sheet-row">
+                <span className="sheet-col sheet-num">{i + 1}</span>
+                <span className="sheet-col sheet-name" title={g.name}>{mine ? "You" : g.name}</span>
+                <span className="sheet-col sheet-digits">
+                  {g.guess.split("").map((ch, di) => {
+                    const mark = notes.digits[ch];
+                    return (
+                      <span key={di} className={`sheet-digit-cell${mark ? ` sheet-digit-cell--${mark}` : ""}`}>{ch}</span>
+                    );
+                  })}
+                </span>
+                <span className="sheet-col sheet-result">
+                  {noPegs ? (
+                    <span className="sheet-dash">–</span>
+                  ) : (
+                    <>
+                      {Array.from({ length: g.stars }).map((_, si) => (
+                        <span key={`s${si}`} className="sheet-star">★</span>
+                      ))}
+                      {Array.from({ length: g.dots }).map((_, di) => (
+                        <span key={`d${di}`} className="sheet-dot">●</span>
+                      ))}
+                    </>
+                  )}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="sheet-draft">
+        <div className="sheet-row sheet-draft-row">
+          <span className="sheet-col sheet-num" aria-hidden="true" />
+          <span className="sheet-col sheet-name">My draft</span>
+          <DraftBoxes
+            draft={notes.draft}
+            digitNotes={notes.digits}
+            onChangeDraft={onChangeDraft}
+            onClearDraft={onClearDraft}
+            onUseAsGuess={onUseAsGuess}
+            idPrefix="sheet-draft"
+            compact
+          />
+        </div>
+      </div>
+    </dialog>
   );
 }
