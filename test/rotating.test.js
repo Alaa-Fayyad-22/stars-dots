@@ -1,5 +1,5 @@
 import {
-  createGameWithPlayers, rawRoom, setRawPlayer, randomValidNumber,
+  createGameWithPlayers, rawRoom, randomValidNumber,
 } from "./helpers.js";
 
 export default async function run({ game, fake, T }) {
@@ -73,29 +73,6 @@ export default async function run({ game, fake, T }) {
     T.assert(scoreboard.every((e) => e.wins === 0), "nobody should score from a no-winner round");
   });
 
-  await T.test("stuck-host fallback only works after 60s of inactivity, during pending only", async () => {
-    const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 3 });
-    const room = rawRoom(fake, code);
-
-    const tooSoon = await game.makeNextHost(code, players.find((p) => p.id !== room.hostId).id);
-    T.assert(!!tooSoon.error, "make-next-host should fail before the host has gone stale");
-
-    setRawPlayer(fake, code, room.hostId, { lastSeen: Date.now() - 61_000 });
-    const requester = players.find((p) => p.id !== room.hostId);
-    const now = await game.makeNextHost(code, requester.id);
-    T.assert(!now.error, `make-next-host should succeed once the host is stale, got: ${now.error}`);
-
-    const room2 = rawRoom(fake, code);
-    T.assert(room2.hostId !== room.hostId, "hosting should have moved to someone else");
-    T.eq(room2.roundState, "pending", "still pending, waiting for the new host to pick");
-
-    // Once a number is picked, make-next-host is no longer relevant.
-    await game.pickSecret(code, room2.hostId, randomValidNumber(4));
-    setRawPlayer(fake, code, room2.hostId, { lastSeen: Date.now() - 61_000 });
-    const afterActive = await game.makeNextHost(code, players[0].id);
-    T.assert(!!afterActive.error, "make-next-host should be rejected once the round is active");
-  });
-
   await T.test("winner becomes host of the next round", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 3 });
     const room1 = rawRoom(fake, code);
@@ -110,16 +87,18 @@ export default async function run({ game, fake, T }) {
     T.eq(room2.roundState, "pending", "the next round should be pending");
   });
 
-  await T.test("removing the current host reassigns hosting without crashing", async () => {
+  await T.test("the host can't remove themself — only leaveGame() can transfer hosting", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 4 });
     const room = rawRoom(fake, code);
-    // The host removes themself — removePlayer() requires the requester to
-    // BE the host to remove anyone in rotating mode, including themselves.
-    const out = await game.removePlayer(code, room.hostId, room.hostId);
-    T.assert(!out.error, `host removing themself should succeed, got: ${out.error}`);
+    const selfRemove = await game.removePlayer(code, room.hostId, room.hostId);
+    T.assert(!!selfRemove.error, "removePlayer should reject self-removal, even for the host");
+
+    const out = await game.leaveGame(code, room.hostId);
+    T.assert(!out.error, `host leaving via leaveGame should succeed, got: ${out.error}`);
     const room2 = rawRoom(fake, code);
     T.assert(room2.hostId && room2.hostId !== room.hostId, "a new host should have been assigned");
+    T.eq(room2.roundState, "pending", "still pending — the new host picks a number next");
     const state = await game.getState(code, room2.hostId);
-    T.assert(state.roundState === "pending" || state.roundState === "active", "game should still be in a valid state");
+    T.assert(state.isHost, "the new host should see themselves as host");
   });
 }

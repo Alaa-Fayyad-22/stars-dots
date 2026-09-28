@@ -150,7 +150,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .confirm-actions { display: flex; gap: 0.6rem; }
 .confirm-actions button { margin-top: 0; }
 
-/* Extra call-to-action inside a turn banner (make host / skip inactive) */
+/* Extra call-to-action inside a turn banner (e.g. "Next round") */
 .banner-action { width: auto; display: inline-block; margin: 0.5rem 0 0; padding: 0.4rem 0.75rem; min-height: 2.2rem; font-size: 0.85rem; background: transparent; }
 .turn-banner--mine .banner-action, .turn-banner--won .banner-action { border-color: var(--ink); color: var(--ink); }
 .banner-note { display: block; margin-top: 0.3rem; font-weight: 600; }
@@ -235,6 +235,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--star) 25%, transparent);
 }
 .turn-banner--waiting { color: var(--muted); font-weight: 600; }
+.hostless-note { margin: 0 0 0.6rem; font-weight: 400; }
 .turn-banner--won, .turn-banner--over {
   background: var(--win);
   color: #06180d;
@@ -355,6 +356,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .draft-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .draft-actions button { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 2.4rem; font-size: 0.9rem; }
 .draft-use { border-color: var(--star); color: var(--star); }
+.draft-submit-message { margin: 0.4rem 0 0; }
 
 /* Compact draft boxes, used inside the scratch sheet */
 .draft-box--compact {
@@ -368,6 +370,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .draft-boxes-wrap--compact .draft-boxes { gap: 0.15rem; }
 .draft-boxes-wrap--compact .draft-actions { gap: 0.4rem; }
 .draft-boxes-wrap--compact .draft-actions button { padding: 0.3rem 0.6rem; min-height: 1.8rem; font-size: 0.8rem; margin: 0; }
+.draft-boxes-wrap--compact .draft-submit-message { font-size: 0.78rem; max-width: 100%; overflow-wrap: break-word; }
 
 /* Scratch sheet: a dense, paper-styled dialog */
 .sheet {

@@ -87,7 +87,7 @@ export function rawOrder(fake, code) {
 }
 
 export async function createGameWithPlayers(game, { mode, digits, count, pin = "1111" }) {
-  const names = ["Ana", "Boro", "Cleo", "Dax", "Eli"].slice(0, count);
+  const names = ["Ana", "Boro", "Cleo", "Dax", "Eli", "Fen", "Gus", "Hana"].slice(0, count);
   const first = await game.createRoom(names[0], pin, mode, digits);
   if (first.error) throw new Error(`createRoom failed: ${first.error}`);
   const players = [{ id: first.playerId, name: names[0] }];

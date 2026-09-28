@@ -191,12 +191,25 @@ export function DigitsChoice({ value, onChange }) {
 
 // The single most important thing on the game screen: what's happening
 // right now, and whether it's my turn.
-export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy, onMakeHost, makeHostBusy, onSkipInactive, skipBusy }) {
-  const { mode, roundState, winner, revealedSecret, isHost, isOrganizer, hostName, currentPlayerId, me, players, hostInactive, currentPlayerInactive } = state;
+export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy }) {
+  const {
+    mode, roundState, winner, revealedSecret, isHost, hostName, isControlsHolder, controlsHolderName,
+    currentPlayerId, me, players,
+  } = state;
   const current = players.find((p) => p.id === currentPlayerId);
   const iAmCurrent = currentPlayerId === playerId;
-  const isHostOrOrganizer = mode === "rotating" ? isHost : isOrganizer;
   const nextName = mode === "rotating" ? hostName : null;
+
+  // Mid-round, the rotating host can leave without ending the round: the
+  // secret they picked stays hidden and in play, nobody takes it over, and
+  // someone else just picks up the host controls. Every other player still
+  // sees the normal turn banner below — this is just an FYI line above it.
+  const hostlessNote = mode === "rotating" && roundState === "active" && !hostName && controlsHolderName ? (
+    <p className="small muted hostless-note">
+      The host left this round — play continues, and nobody holds the secret right now.
+      {isControlsHolder ? " You're holding the host controls until someone wins." : ` ${controlsHolderName} is holding the host controls.`}
+    </p>
+  ) : null;
 
   if (roundState === "pending") {
     if (isHost) {
@@ -211,11 +224,6 @@ export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy, 
       <div className="turn-banner turn-banner--waiting" role="status">
         <span className="turn-banner-icon" aria-hidden="true">⏳</span>
         <span>Waiting for {hostName || "the host"} to pick the number…</span>
-        {hostInactive && (
-          <button type="button" className="secondary banner-action" onClick={onMakeHost} disabled={makeHostBusy}>
-            Make the next player host
-          </button>
-        )}
       </div>
     );
   }
@@ -259,30 +267,34 @@ export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy, 
   }
   if (me?.solved) {
     return (
-      <div className="turn-banner turn-banner--waiting" role="status">
-        <span className="turn-banner-icon" aria-hidden="true">★</span>
-        <span>You already found it. Waiting for the round to end.</span>
-      </div>
+      <>
+        {hostlessNote}
+        <div className="turn-banner turn-banner--waiting" role="status">
+          <span className="turn-banner-icon" aria-hidden="true">★</span>
+          <span>You already found it. Waiting for the round to end.</span>
+        </div>
+      </>
     );
   }
   if (iAmCurrent) {
     return (
-      <div className="turn-banner turn-banner--mine" role="status">
-        <span className="turn-banner-icon" aria-hidden="true">▶</span>
-        <span>Your turn — take a guess!</span>
-      </div>
+      <>
+        {hostlessNote}
+        <div className="turn-banner turn-banner--mine" role="status">
+          <span className="turn-banner-icon" aria-hidden="true">▶</span>
+          <span>Your turn — take a guess!</span>
+        </div>
+      </>
     );
   }
   return (
-    <div className="turn-banner turn-banner--waiting" role="status">
-      <span className="turn-banner-icon" aria-hidden="true">⏳</span>
-      <span>Waiting for {current?.name || "the next player"}…</span>
-      {currentPlayerInactive && !isHostOrOrganizer && (
-        <button type="button" className="secondary banner-action" onClick={onSkipInactive} disabled={skipBusy}>
-          Skip {current?.name || "their"} turn — inactive
-        </button>
-      )}
-    </div>
+    <>
+      {hostlessNote}
+      <div className="turn-banner turn-banner--waiting" role="status">
+        <span className="turn-banner-icon" aria-hidden="true">⏳</span>
+        <span>Waiting for {current?.name || "the next player"}…</span>
+      </div>
+    </>
   );
 }
 
@@ -456,7 +468,7 @@ function CompactNotepad({ notes, onToggleDigit }) {
 // The N-box "draft number" scratchpad, reused by both the main player view
 // and the scratch sheet. It's a memory aid only: it never validates while
 // editing, and never computes or suggests an answer.
-export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onClearDraft, onUseAsGuess, idPrefix = "draft", compact }) {
+export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onClearDraft, onUseAsGuess, idPrefix = "draft", compact, onSubmitGuess, submitDisabled, submitBusy, submitMessage }) {
   const refs = useRef([]);
   const valid = draft.every(Boolean) && isValidNumber(draft.join(""), digits);
 
@@ -522,7 +534,15 @@ export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onCle
             Use as guess
           </button>
         )}
+        {onSubmitGuess && (
+          <button type="button" className="secondary draft-submit" onClick={onSubmitGuess} disabled={submitDisabled || submitBusy}>
+            {submitBusy ? "Submitting…" : "Submit guess"}
+          </button>
+        )}
       </div>
+      {onSubmitGuess && submitMessage && (
+        <p className="error small draft-submit-message" role="alert">{submitMessage}</p>
+      )}
     </div>
   );
 }
@@ -531,7 +551,10 @@ export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onCle
 // scannable table, the same digit notepad, and the draft pinned at the
 // bottom. It only ever displays existing state and the player's own notes —
 // nothing here computes or reveals anything about the secret.
-export function ScratchSheet({ open, onClose, players, playerId, notes, digits = 4, onToggleDigit, onChangeDraft, onClearDraft, onUseAsGuess }) {
+export function ScratchSheet({
+  open, onClose, players, playerId, notes, digits = 4, onToggleDigit, onChangeDraft, onClearDraft, onUseAsGuess,
+  onSubmitGuess, submitDisabled, submitBusy, submitMessage,
+}) {
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
   const listRef = useRef(null);
@@ -677,6 +700,10 @@ export function ScratchSheet({ open, onClose, players, playerId, notes, digits =
               onUseAsGuess={onUseAsGuess}
               idPrefix="sheet-draft"
               compact
+              onSubmitGuess={onSubmitGuess}
+              submitDisabled={submitDisabled}
+              submitBusy={submitBusy}
+              submitMessage={submitMessage}
             />
           </div>
         </div>

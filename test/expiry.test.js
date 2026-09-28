@@ -39,6 +39,9 @@ export default async function run({ game, fake, T }) {
     const s1 = await game.getState(rot.code, rot.players[0].id);
     await game.submitGuess(rot.code, s1.currentPlayerId, secret1);
     await game.rejoinRoom(rot.code, rot.players[1].name, "1111");
+    // leaveGame(): exercises the hostless-round path too.
+    const room1b = rawRoom(fake, rot.code);
+    if (room1b.hostId) await game.leaveGame(rot.code, room1b.hostId);
 
     // Computer mode: exercises the roundstart-claim key via newRound(), plus
     // an end-round-with-no-winner pass.

@@ -37,9 +37,16 @@ export default async function run({ game, fake, T }) {
 
   await T.test("removing the current player advances the turn to a valid remaining player", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "computer", digits: 4, count: 4 });
-    const before = await game.getState(code, players[0].id);
-    const curId = before.currentPlayerId;
     const room = rawRoom(fake, code);
+    // The organizer can't remove themselves, so if it's currently their own
+    // turn, skip past it first — this test is about removing a *different*
+    // current player.
+    let before = await game.getState(code, players[0].id);
+    if (before.currentPlayerId === room.creatorId) {
+      await game.skipTurn(code, room.creatorId);
+      before = await game.getState(code, players[0].id);
+    }
+    const curId = before.currentPlayerId;
     const out = await game.removePlayer(code, room.creatorId, curId);
     T.assert(!out.error, `remove should succeed, got: ${out.error}`);
     const after = await game.getState(code, players[0].id);
@@ -49,33 +56,51 @@ export default async function run({ game, fake, T }) {
     T.assert(stillIn && !stillIn.removed, "the new current player should not be removed");
   });
 
-  await T.test("removing everyone leaves the game in a valid, non-crashing state", async () => {
+  await T.test("removing everyone (but the organizer, who leaves instead) leaves the game in a valid, non-crashing state", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "computer", digits: 4, count: 3 });
     const room = rawRoom(fake, code);
     for (const p of players) {
-      // The organizer can't be checked against itself once removed, so
-      // always issue the removal from the organizer id directly.
-      await game.removePlayer(code, room.creatorId, p.id);
+      if (p.id === room.creatorId) continue;
+      const out = await game.removePlayer(code, room.creatorId, p.id);
+      T.assert(!out.error, `removing ${p.name} should succeed, got: ${out.error}`);
     }
+    // The organizer can't remove themselves — the only way out is leaveGame().
+    const selfRemove = await game.removePlayer(code, room.creatorId, room.creatorId);
+    T.assert(!!selfRemove.error, "the organizer removing themselves should be rejected");
+    const leftOut = await game.leaveGame(code, room.creatorId);
+    T.assert(!leftOut.error, `the organizer leaving should succeed, got: ${leftOut.error}`);
+
     const state = await game.getState(code, players[0].id);
-    T.eq(state.currentPlayerId, null, "no current player once everyone is removed");
-    T.assert(state.players.every((p) => p.removed), "every player should be marked removed");
+    T.eq(state.currentPlayerId, null, "no current player once everyone is gone");
+    T.assert(state.players.every((p) => p.removed), "every player should be marked removed/left");
     T.assert(state.scoreboard.every((e) => e.removed), "scoreboard should mark everyone as left");
     // A subsequent guess attempt should fail cleanly, not throw.
     const guessAttempt = await game.submitGuess(code, players[0].id, randomValidNumber(4));
     T.assert(!!guessAttempt.error, "guessing after being removed should fail cleanly");
   });
 
-  await T.test("removing the current host (rotating) keeps the turn order valid", async () => {
+  await T.test("the rotating host leaving mid-round keeps the turn order valid and hides the secret", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 4 });
     const room1 = rawRoom(fake, code);
     await game.pickSecret(code, room1.hostId, randomValidNumber(4));
     const before = await game.getState(code, players[0].id);
     const room2 = rawRoom(fake, code);
-    const out = await game.removePlayer(code, room2.hostId, room2.hostId);
-    T.assert(!out.error, `host removing itself should succeed, got: ${out.error}`);
+
+    const selfRemove = await game.removePlayer(code, room2.hostId, room2.hostId);
+    T.assert(!!selfRemove.error, "the host removing themselves should be rejected");
+
+    const out = await game.leaveGame(code, room2.hostId);
+    T.assert(!out.error, `host leaving mid-round should succeed, got: ${out.error}`);
     const room3 = rawRoom(fake, code);
-    T.assert(room3.hostId !== room2.hostId, "a new host should have taken over");
+    T.eq(room3.hostId, null, "the round should go hostless — nobody takes over the secret mid-round");
+    T.assert(room3.controlsId && room3.controlsId !== room2.hostId, "someone else should hold controls now");
+    T.eq(room3.secret, room2.secret, "the in-progress secret should be untouched");
+
+    const controlsState = await game.getState(code, room3.controlsId);
+    T.eq(controlsState.secret, null, "the new controls-holder should NOT see the secret they didn't pick");
+    T.assert(!controlsState.isHost, "the controls-holder isn't 'the host' during a hostless round");
+    T.assert(controlsState.isControlsHolder, "the controls-holder should be recognized as holding controls");
+
     const after = await game.getState(code, players[0].id);
     if (before.currentPlayerId !== room2.hostId) {
       T.assert(after.currentPlayerId !== null, "there should still be a valid current player");

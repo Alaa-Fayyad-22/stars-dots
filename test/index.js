@@ -22,6 +22,9 @@ const suites = [
   "./edge.test.js",
   "./expiry.test.js",
   "./compat.test.js",
+  "./scratchsheet.test.js",
+  "./leavegame.test.js",
+  "./fullcheck.test.js",
 ];
 
 for (const path of suites) {

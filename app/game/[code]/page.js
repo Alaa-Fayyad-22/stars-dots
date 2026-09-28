@@ -7,7 +7,7 @@ import {
   Legend, DigitEntry, PinEntry, RoundBanner, GuessFeed, PlayerNotes, DraftBoxes,
   ScratchSheet, Scoreboard, DuplicateWarning,
 } from "../../Board";
-import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess } from "@/lib/client";
+import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason } from "@/lib/client";
 
 const POLL_MS = 2000;
 
@@ -204,38 +204,126 @@ function EndRoundControl({ code, playerId, onDone }) {
   );
 }
 
+// The rotating host / computer organizer's only way to give up their seat.
+// Confirmed, since it can't be undone from that device.
+function LeaveGameControl({ code, playerId, mode, onLeft }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function confirm() {
+    setBusy(true); setError("");
+    try { await post("/api/leave", { code, playerId }); await onLeft(); }
+    catch (e) { setError(e.message); setBusy(false); }
+  }
+  const roleWord = mode === "rotating" ? "host" : "organizer";
+  if (!confirming) {
+    return <button type="button" className="secondary" onClick={() => setConfirming(true)}>Leave game</button>;
+  }
+  return (
+    <div className="confirm-box">
+      <p className="small">
+        Leave the game for good? You'll stop being {roleWord}, someone else will take over the controls, and you can't rejoin this seat.
+      </p>
+      <div className="confirm-actions">
+        <button type="button" className="secondary" onClick={confirm} disabled={busy}>Yes, leave the game</button>
+        <button type="button" className="secondary" onClick={() => setConfirming(false)} disabled={busy}>Cancel</button>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
 function GameView({ state, code, playerId, onAction }) {
   const { digits } = state;
   const [guess, setGuess] = useState("");
   const [guessError, setGuessError] = useState("");
   const [guessBusy, setGuessBusy] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [draftGuessBusy, setDraftGuessBusy] = useState(false);
+  const [draftGuessError, setDraftGuessError] = useState("");
   const [nextRoundBusy, setNextRoundBusy] = useState(false);
-  const [makeHostBusy, setMakeHostBusy] = useState(false);
   const [skipBusy, setSkipBusy] = useState(false);
   const [skipError, setSkipError] = useState("");
   const [removeBusyId, setRemoveBusyId] = useState(null);
   const [removeError, setRemoveError] = useState("");
 
-  const isHostOrOrganizer = state.mode === "rotating" ? state.isHost : state.isOrganizer;
+  // Whoever currently holds host/organizer controls right now — the actual
+  // host, or, during a hostless rotating round, whoever picked up controls
+  // when the host left. Always checked again on the server too.
+  const isControlsHolder = state.isControlsHolder;
   const iAmHostThisRound = state.mode === "rotating" && state.isHost;
   const canGuess = state.roundState === "active" && !iAmHostThisRound && !state.me.solved && state.currentPlayerId === playerId;
   const showGuessForm = state.roundState === "active" && !iAmHostThisRound && !state.me.solved;
   const showNotesAndDraft = !iAmHostThisRound;
 
+  // The one exception to "the sheet never closes by itself": the moment a
+  // player becomes the actual host (wins a round, or takes over after "End
+  // round"/the previous host leaving between rounds), their player tools —
+  // including the scratch sheet — go away, so close it if it was open.
+  useEffect(() => {
+    if (iAmHostThisRound) setSheetOpen(false);
+  }, [iAmHostThisRound]);
+
   const { notes, toggleDigit, setDraft, clearDraft, clear } = usePlayerNotes(code, state.round, digits);
   const dup = guess.length === digits ? findDuplicateGuess(state.players, guess, playerId) : null;
+
+  const draftString = notes.draft.join("");
+  const draftReason = draftGuessReason({
+    draft: notes.draft,
+    digits,
+    players: state.players,
+    playerId,
+    roundState: state.roundState,
+    isHostThisRound: iAmHostThisRound,
+    solved: state.me.solved,
+    currentPlayerId: state.currentPlayerId,
+  });
+  const draftCanSubmit = draftReason === null;
+  const draftSubmitMessage = draftGuessError || (!draftGuessBusy && !draftCanSubmit ? draftReason : null);
+
+  // Shared by both the main "Check guess" button and the scratch sheet's
+  // "Submit guess" button, so server validation, duplicate protection, and
+  // double-tap protection all apply exactly the same way either way.
+  async function submitGuessValue(value) {
+    try {
+      await post("/api/guess", { code, playerId, guess: value });
+      await onAction();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
 
   async function submitGuess() {
     if (guessBusy || guess.length !== digits || !canGuess || dup) return;
     setGuessBusy(true); setGuessError("");
-    try { await post("/api/guess", { code, playerId, guess }); setGuess(""); await onAction(); }
-    catch (e) { setGuessError(e.message); }
+    const res = await submitGuessValue(guess);
+    if (res.ok) setGuess(""); else setGuessError(res.error);
     setGuessBusy(false);
   }
 
-  function useDraftAsGuess(draftString) {
-    setGuess(digitsOnly(draftString, digits));
+  async function submitDraftGuess() {
+    if (draftGuessBusy || !draftCanSubmit) return;
+    setDraftGuessBusy(true); setDraftGuessError("");
+    const res = await submitGuessValue(draftString);
+    if (!res.ok) setDraftGuessError(res.error);
+    // The draft is intentionally left as-is either way, so the player can
+    // adjust it for their next guess.
+    setDraftGuessBusy(false);
+  }
+
+  function useDraftAsGuess(value) {
+    setGuess(digitsOnly(value, digits));
+  }
+
+  function openSheet() {
+    setDraftGuessError("");
+    setSheetOpen(true);
+  }
+
+  function changeDraftFromSheet(next) {
+    setDraft(next);
+    if (draftGuessError) setDraftGuessError("");
   }
 
   async function nextRound() {
@@ -246,16 +334,7 @@ function GameView({ state, code, playerId, onAction }) {
     setNextRoundBusy(false);
   }
 
-  async function makeHost() {
-    if (makeHostBusy) return;
-    setMakeHostBusy(true);
-    try { await post("/api/makehost", { code, playerId }); await onAction(); }
-    catch { /* ignore; state will reflect reality on next poll */ }
-    setMakeHostBusy(false);
-  }
-
-  // Shared by the host/organizer's manual "skip turn" and the stuck-player
-  // fallback button — the server decides which one applies to this player.
+  // Host-only (rotating) / organizer-only (computer) skip, checked server-side.
   async function skipTurn() {
     if (skipBusy) return;
     setSkipBusy(true); setSkipError("");
@@ -273,6 +352,7 @@ function GameView({ state, code, playerId, onAction }) {
   }
 
   if (state.me.removed) {
+    const leftVoluntarily = state.me.leaveReason === "left";
     return (
       <>
         <TopBar code={code} state={state} />
@@ -280,7 +360,11 @@ function GameView({ state, code, playerId, onAction }) {
           <div className="col-main">
             <section>
               <div className="turn-banner turn-banner--waiting" role="status">
-                <span>You've been removed from this game by the host.</span>
+                <span>
+                  {leftVoluntarily
+                    ? "You left this game. You can't rejoin this seat."
+                    : "You've been removed from this game by the host."}
+                </span>
               </div>
             </section>
             <section>
@@ -313,14 +397,10 @@ function GameView({ state, code, playerId, onAction }) {
               playerId={playerId}
               onNextRoundClick={nextRound}
               nextRoundBusy={nextRoundBusy}
-              onMakeHost={makeHost}
-              makeHostBusy={makeHostBusy}
-              onSkipInactive={skipTurn}
-              skipBusy={skipBusy}
             />
             {showGuessForm && (
               <>
-                <button type="button" className="secondary sheet-open" onClick={() => setSheetOpen(true)}>Scratch sheet</button>
+                <button type="button" className="secondary sheet-open" onClick={openSheet}>Scratch sheet</button>
                 <DigitEntry
                   id="g"
                   label="Your guess"
@@ -340,7 +420,7 @@ function GameView({ state, code, playerId, onAction }) {
               </>
             )}
             {!showGuessForm && state.roundState === "active" && (
-              <button type="button" className="secondary sheet-open" onClick={() => setSheetOpen(true)}>Scratch sheet</button>
+              <button type="button" className="secondary sheet-open" onClick={openSheet}>Scratch sheet</button>
             )}
           </section>
 
@@ -383,18 +463,25 @@ function GameView({ state, code, playerId, onAction }) {
               currentPlayerId={state.roundState === "active" ? state.currentPlayerId : null}
               rotatingHostName={state.mode === "rotating" ? state.hostName : null}
               organizerName={state.organizerName}
-              onRemove={isHostOrOrganizer ? removePlayerFromGame : null}
+              controlsHolderName={state.mode === "rotating" && !state.hostName ? state.controlsHolderName : null}
+              protectedIds={[playerId, state.hostId, state.controlsHolderId].filter(Boolean)}
+              onRemove={isControlsHolder ? removePlayerFromGame : null}
               removeBusyId={removeBusyId}
             />
             {removeError && <p className="error" role="alert">{removeError}</p>}
-            {isHostOrOrganizer && state.roundState === "active" && (
+            {isControlsHolder && (
               <>
-                <button className="secondary" onClick={skipTurn} disabled={skipBusy}>
-                  Skip {current ? current.name : "player"}'s turn
-                </button>
-                <p className="small muted">Use this if someone leaves and the game gets stuck.</p>
-                <EndRoundControl code={code} playerId={playerId} onDone={onAction} />
-                {skipError && <p className="error" role="alert">{skipError}</p>}
+                {state.roundState === "active" && (
+                  <>
+                    <button className="secondary" onClick={skipTurn} disabled={skipBusy}>
+                      Skip {current ? current.name : "player"}'s turn
+                    </button>
+                    <p className="small muted">Use this if someone leaves and the game gets stuck.</p>
+                    <EndRoundControl code={code} playerId={playerId} onDone={onAction} />
+                    {skipError && <p className="error" role="alert">{skipError}</p>}
+                  </>
+                )}
+                <LeaveGameControl code={code} playerId={playerId} mode={state.mode} onLeft={onAction} />
               </>
             )}
           </section>
@@ -412,7 +499,7 @@ function GameView({ state, code, playerId, onAction }) {
         </div>
       </div>
 
-      {showNotesAndDraft && (
+      {(showNotesAndDraft || sheetOpen) && (
         <ScratchSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
@@ -421,16 +508,23 @@ function GameView({ state, code, playerId, onAction }) {
           notes={notes}
           digits={digits}
           onToggleDigit={toggleDigit}
-          onChangeDraft={setDraft}
+          onChangeDraft={changeDraftFromSheet}
           onClearDraft={clearDraft}
           onUseAsGuess={(d) => { useDraftAsGuess(d); setSheetOpen(false); }}
+          onSubmitGuess={submitDraftGuess}
+          submitDisabled={!draftCanSubmit}
+          submitBusy={draftGuessBusy}
+          submitMessage={draftSubmitMessage}
         />
       )}
     </>
   );
 }
 
-function PlayerList({ players, playerId, currentPlayerId, rotatingHostName, organizerName, onRemove, removeBusyId }) {
+function PlayerList({
+  players, playerId, currentPlayerId, rotatingHostName, organizerName, controlsHolderName,
+  protectedIds, onRemove, removeBusyId,
+}) {
   const active = players.filter((p) => !p.removed);
   if (active.length === 0) {
     return <p className="muted">It's just you so far. Send the invite to get others in.</p>;
@@ -440,8 +534,10 @@ function PlayerList({ players, playerId, currentPlayerId, rotatingHostName, orga
       {active.map((p) => {
         const tags = [];
         if (p.name === rotatingHostName) tags.push("host");
+        else if (p.name === controlsHolderName) tags.push("filling in as host");
         if (p.name === organizerName) tags.push("organizer");
         if (p.id === playerId) tags.push("you");
+        const canRemove = onRemove && !(protectedIds || []).includes(p.id);
         return (
           <li key={p.id} className={`who${p.id === currentPlayerId ? " who--turn" : ""}`}>
             <span className="who-name">
@@ -451,7 +547,7 @@ function PlayerList({ players, playerId, currentPlayerId, rotatingHostName, orga
             <span className={`who-tries ${p.solved ? "solved" : "muted"}`}>
               {p.solved ? `Solved in ${p.tries}` : `${p.tries} ${p.tries === 1 ? "try" : "tries"}`}
             </span>
-            {onRemove && (
+            {canRemove && (
               <button type="button" className="secondary who-remove" onClick={() => onRemove(p.id)} disabled={!!removeBusyId}>
                 Remove
               </button>

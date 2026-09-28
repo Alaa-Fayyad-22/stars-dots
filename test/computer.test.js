@@ -1,5 +1,5 @@
 import {
-  createGameWithPlayers, rawRoom, setRawPlayer, randomValidNumber,
+  createGameWithPlayers, rawRoom,
 } from "./helpers.js";
 
 export default async function run({ game, fake, T }) {
@@ -45,21 +45,21 @@ export default async function run({ game, fake, T }) {
     T.eq(room2.round, roundAfterWin + 1, "round number should have advanced by exactly one, not two");
   });
 
-  await T.test("inactive current player can be skipped by anyone after 60s", async () => {
+  await T.test("only the organizer can skip a turn — no fallback for anyone else", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "computer", digits: 4, count: 3 });
+    const room = rawRoom(fake, code);
     const state = await game.getState(code, players[0].id);
     const curId = state.currentPlayerId;
-    const other = players.find((p) => p.id !== curId);
+    const nonOrganizer = players.find((p) => p.id !== room.creatorId);
 
-    const tooSoon = await game.skipTurn(code, other.id);
-    T.assert(!!tooSoon.error, "skip should fail before the current player has gone stale");
-
-    setRawPlayer(fake, code, curId, { lastSeen: Date.now() - 61_000 });
-    const now = await game.skipTurn(code, other.id);
-    T.assert(!now.error, `skip should succeed once the current player is stale, got: ${now.error}`);
+    const rejected = await game.skipTurn(code, nonOrganizer.id);
+    T.assert(!!rejected.error, "a non-organizer should never be able to skip a turn, however long the current player has been idle");
 
     const state2 = await game.getState(code, players[0].id);
-    T.assert(state2.currentPlayerId !== curId, "turn should have moved on from the stale player");
+    T.eq(state2.currentPlayerId, curId, "turn should be unchanged after a rejected skip");
+
+    const out = await game.skipTurn(code, room.creatorId);
+    T.assert(!out.error, `the organizer should still be able to skip, got: ${out.error}`);
   });
 
   await T.test("newRound is rejected in rotating mode", async () => {
