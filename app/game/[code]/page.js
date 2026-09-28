@@ -5,9 +5,10 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Legend, DigitEntry, PinEntry, RoundBanner, GuessFeed, PlayerNotes, DraftBoxes,
-  ScratchSheet, Scoreboard, DuplicateWarning,
+  ScratchSheet, Scoreboard, RoundHistory, DuplicateWarning,
 } from "../../Board";
 import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason } from "@/lib/client";
+
 
 const POLL_MS = 2000;
 
@@ -408,6 +409,12 @@ function GameView({ state, code, playerId, onAction }) {
               <h2>Everyone's guesses</h2>
               <GuessFeed players={state.players} playerId={playerId} />
             </section>
+            {state.rounds?.length > 0 && (
+              <section>
+                <h2>Rounds</h2>
+                <RoundHistory rounds={state.rounds} />
+              </section>
+            )}
           </div>
         </div>
       </>
@@ -554,6 +561,12 @@ function GameView({ state, code, playerId, onAction }) {
             <h2>Everyone's guesses</h2>
             <GuessFeed players={state.players} playerId={playerId} digitNotes={notes.digits} />
           </section>
+          {state.rounds?.length > 0 && (
+          <section>
+            <h2>Rounds</h2>
+            <RoundHistory rounds={state.rounds} />
+          </section>
+        )}
         </div>
       </div>
 

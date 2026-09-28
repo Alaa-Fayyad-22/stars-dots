@@ -337,6 +337,36 @@ export function Scoreboard({ scoreboard, playerId }) {
   );
 }
 
+// One row per finished round: who won, what the number was, and how many
+// guesses everyone made in total. Newest round first.
+export function RoundHistory({ rounds }) {
+  if (!rounds || rounds.length === 0) return null;
+  return (
+    <div className="scoreboard">
+      <table className="scoreboard-table">
+        <thead>
+          <tr>
+            <th className="scoreboard-rank">Round</th>
+            <th>Winner</th>
+            <th className="scoreboard-num">Number</th>
+            <th className="scoreboard-num">Total tries</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...rounds].reverse().map((r) => (
+            <tr key={r.round}>
+              <td className="scoreboard-rank">{r.round}</td>
+              <td className="scoreboard-name">{r.winnerName || "No winner"}</td>
+              <td className="scoreboard-num">{r.secret}</td>
+              <td className="scoreboard-num">{r.totalTries}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // A warning shown as soon as the player types a number someone has already
 // guessed this round — before they even try to submit it.
 export function DuplicateWarning({ dup }) {
