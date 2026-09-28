@@ -233,6 +233,29 @@ function LeaveGameControl({ code, playerId, mode, onLeft }) {
   );
 }
 
+// The rotating host's own number, hidden until they tap Show, so nobody
+// can read it over their shoulder.
+function SecretReveal({ secret }) {
+  const [show, setShow] = useState(false);
+  return (
+    <section>
+      <h2>Your number</h2>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+        <span className="room-code">{show ? secret : "•".repeat(secret.length)}</span>
+        <button
+          type="button"
+          className="secondary"
+          style={{ width: "auto", margin: 0 }}
+          onClick={() => setShow(!show)}
+        >
+          {show ? "Hide" : "Show"}
+        </button>
+      </div>
+      <p className="small muted">Only you can see this.</p>
+    </section>
+  );
+}
+
 function GameView({ state, code, playerId, onAction }) {
   const { digits } = state;
   const [guess, setGuess] = useState("");
@@ -435,6 +458,9 @@ function GameView({ state, code, playerId, onAction }) {
           {state.mode === "rotating" && state.isHost && state.roundState === "pending" && (
             <PickSecretForm code={code} playerId={playerId} digits={digits} onDone={onAction} />
           )}
+          {iAmHostThisRound && state.roundState === "active" && state.secret && (
+  <SecretReveal secret={state.secret} />
+)}
 
           {betweenRounds && (
             <section>
