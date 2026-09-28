@@ -335,6 +335,40 @@ export function ScratchSheet({ open, onClose, players, playerId, notes, onToggle
     if (!open && dlg.open) dlg.close();
   }, [open]);
 
+  // Lock the page behind the sheet so only the sheet's own guess list
+  // scrolls. `overflow: hidden` on body isn't enough on iOS Safari, which
+  // still allows the page to scroll/bounce underneath a fixed overlay — so
+  // instead we pin the body in place at its current scroll offset and
+  // restore the real scroll position when the sheet closes (in any way:
+  // the close button, Escape, "Use as guess", or this component unmounting,
+  // since all of those end up flipping `open` to false or unmounting, and
+  // the effect cleanup below always runs either way).
+  useEffect(() => {
+    if (!open) return;
+    const scrollY = window.scrollY;
+    const { body } = document;
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
+
   useEffect(() => {
     const dlg = dialogRef.current;
     if (!dlg) return;
