@@ -1,12 +1,12 @@
-import { joinRoom } from "@/lib/game";
+import { makeNextHost } from "@/lib/game";
 
 export async function POST(req) {
   let body;
   try { body = await req.json(); } catch { return Response.json({ error: "Invalid request." }, { status: 400 }); }
-  const { code, name, pin } = body;
+  const { code, playerId } = body;
   try {
-    const out = await joinRoom(String(code || "").toUpperCase(), name, pin);
-    if (out.error) return Response.json(out, { status: out.error.includes("No game found") ? 404 : 400 });
+    const out = await makeNextHost(String(code || "").toUpperCase(), playerId);
+    if (out.error) return Response.json(out, { status: 400 });
     return Response.json(out);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });

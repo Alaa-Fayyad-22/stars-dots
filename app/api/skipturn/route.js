@@ -1,5 +1,8 @@
 import { skipTurn } from "@/lib/game";
 
+// Handles both the host/organizer's manual "skip turn" and the stuck-player
+// fallback (anyone can skip once the current player's been inactive for
+// 60+ seconds) — skipTurn() itself decides which one applies.
 export async function POST(req) {
   let body;
   try { body = await req.json(); } catch { return Response.json({ error: "Invalid request." }, { status: 400 }); }
