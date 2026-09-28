@@ -212,19 +212,39 @@ export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy }
   ) : null;
 
   if (roundState === "pending") {
+    // Rotating mode moves straight from "active" to "pending" the instant a
+    // round ends (the winner becomes host of the next one), so this is the
+    // only state where the just-finished round's outcome is ever visible —
+    // winner/revealedSecret stay populated here until the new host picks a
+    // number, at which point pickSecret() clears them.
+    const justEnded = winner ? (
+      <p className="small banner-note">
+        {winner.id === playerId ? "You cracked it!" : `${winner.name} cracked it in ${winner.tries} ${winner.tries === 1 ? "try" : "tries"}.`}
+        {revealedSecret ? ` The number was ${revealedSecret}.` : ""}
+      </p>
+    ) : revealedSecret ? (
+      <p className="small banner-note">The round ended with no winner. The number was {revealedSecret}.</p>
+    ) : null;
+
     if (isHost) {
       return (
-        <div className="turn-banner turn-banner--mine" role="status">
-          <span className="turn-banner-icon" aria-hidden="true">✎</span>
-          <span>It's your turn to host — pick a number to start this round.</span>
-        </div>
+        <>
+          {justEnded}
+          <div className="turn-banner turn-banner--mine" role="status">
+            <span className="turn-banner-icon" aria-hidden="true">✎</span>
+            <span>It's your turn to host — pick a number to start this round.</span>
+          </div>
+        </>
       );
     }
     return (
-      <div className="turn-banner turn-banner--waiting" role="status">
-        <span className="turn-banner-icon" aria-hidden="true">⏳</span>
-        <span>Waiting for {hostName || "the host"} to pick the number…</span>
-      </div>
+      <>
+        {justEnded}
+        <div className="turn-banner turn-banner--waiting" role="status">
+          <span className="turn-banner-icon" aria-hidden="true">⏳</span>
+          <span>Waiting for {hostName || "the host"} to pick the number…</span>
+        </div>
+      </>
     );
   }
 

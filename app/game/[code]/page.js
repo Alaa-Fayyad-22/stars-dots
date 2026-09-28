@@ -7,7 +7,7 @@ import {
   Legend, DigitEntry, PinEntry, RoundBanner, GuessFeed, PlayerNotes, DraftBoxes,
   ScratchSheet, Scoreboard, RoundHistory, DuplicateWarning,
 } from "../../Board";
-import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason } from "@/lib/client";
+import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason, canPlayerGuess } from "@/lib/client";
 
 
 const POLL_MS = 2000;
@@ -312,7 +312,13 @@ function GameView({ state, code, playerId, onAction }) {
   // when the host left. Always checked again on the server too.
   const isControlsHolder = state.isControlsHolder;
   const iAmHostThisRound = state.mode === "rotating" && state.isHost;
-  const canGuess = state.roundState === "active" && !iAmHostThisRound && !state.me.solved && state.currentPlayerId === playerId;
+  const canGuess = canPlayerGuess({
+    roundState: state.roundState,
+    isHostThisRound: iAmHostThisRound,
+    solved: state.me.solved,
+    currentPlayerId: state.currentPlayerId,
+    playerId,
+  });
   const showGuessForm = state.roundState === "active" && !iAmHostThisRound && !state.me.solved;
   const showNotesAndDraft = !iAmHostThisRound;
 

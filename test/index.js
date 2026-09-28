@@ -25,6 +25,11 @@ const suites = [
   "./scratchsheet.test.js",
   "./leavegame.test.js",
   "./fullcheck.test.js",
+  "./restore.test.js",
+  "./rounds.test.js",
+  "./secret.test.js",
+  "./alert.test.js",
+  "./playthrough.test.js",
 ];
 
 for (const path of suites) {
