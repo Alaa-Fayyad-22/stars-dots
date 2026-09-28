@@ -390,9 +390,10 @@ useEffect(() => {
     if (draftGuessBusy || !draftCanSubmit) return;
     setDraftGuessBusy(true); setDraftGuessError("");
     const res = await submitGuessValue(draftString);
-    if (!res.ok) setDraftGuessError(res.error);
-    // The draft is intentionally left as-is either way, so the player can
-    // adjust it for their next guess.
+    // On success the number's been used, so clear the draft (shared with the
+    // main view) for the next guess. On rejection, leave it as-is so the
+    // player can fix it.
+    if (res.ok) clearDraft(); else setDraftGuessError(res.error);
     setDraftGuessBusy(false);
   }
 
