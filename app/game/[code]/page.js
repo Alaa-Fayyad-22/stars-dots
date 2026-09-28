@@ -403,18 +403,19 @@ function GameView({ state, code, playerId, onAction }) {
               <h2>Scoreboard</h2>
               <Scoreboard scoreboard={state.scoreboard} playerId={playerId} />
             </section>
-          </div>
-          <div className="col-side">
-            <section>
-              <h2>Everyone's guesses</h2>
-              <GuessFeed players={state.players} playerId={playerId} />
-            </section>
             {state.rounds?.length > 0 && (
               <section>
                 <h2>Rounds</h2>
                 <RoundHistory rounds={state.rounds} />
               </section>
             )}
+          </div>
+          <div className="col-side">
+            <section>
+              <h2>Everyone's guesses</h2>
+              <GuessFeed players={state.players} playerId={playerId} />
+            </section>
+            
           </div>
         </div>
       </>
@@ -557,16 +558,17 @@ function GameView({ state, code, playerId, onAction }) {
             <h2>Scoreboard</h2>
             <Scoreboard scoreboard={state.scoreboard} playerId={playerId} />
           </section>
-          <section>
-            <h2>Everyone's guesses</h2>
-            <GuessFeed players={state.players} playerId={playerId} digitNotes={notes.digits} />
-          </section>
           {state.rounds?.length > 0 && (
           <section>
             <h2>Rounds</h2>
             <RoundHistory rounds={state.rounds} />
           </section>
         )}
+          <section>
+            <h2>Everyone's guesses</h2>
+            <GuessFeed players={state.players} playerId={playerId} digitNotes={notes.digits} />
+          </section>
+          
         </div>
       </div>
 
