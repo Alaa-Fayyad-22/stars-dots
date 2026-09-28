@@ -1,12 +1,11 @@
-import { newRound, isFourDigits } from "@/lib/game";
+import { removePlayer } from "@/lib/game";
 
 export async function POST(req) {
   let body;
   try { body = await req.json(); } catch { return Response.json({ error: "Invalid request." }, { status: 400 }); }
-  const { code, playerId, secret } = body;
-  if (!isFourDigits(secret)) return Response.json({ error: "The secret must use 4 different digits, not starting with 0." }, { status: 400 });
+  const { code, playerId, targetPlayerId } = body;
   try {
-    const out = await newRound(String(code || "").toUpperCase(), playerId, secret);
+    const out = await removePlayer(String(code || "").toUpperCase(), playerId, targetPlayerId);
     if (out.error) return Response.json(out, { status: 400 });
     return Response.json(out);
   } catch (e) {

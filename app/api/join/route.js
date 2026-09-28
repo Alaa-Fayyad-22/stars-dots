@@ -1,7 +1,9 @@
 import { joinRoom, cleanName } from "@/lib/game";
 
 export async function POST(req) {
-  const { code, name } = await req.json();
+  let body;
+  try { body = await req.json(); } catch { return Response.json({ error: "Invalid request." }, { status: 400 }); }
+  const { code, name } = body;
   const playerName = cleanName(name);
   if (!playerName) return Response.json({ error: "Enter your name." }, { status: 400 });
   try {

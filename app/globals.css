@@ -204,6 +204,8 @@ button:not(:disabled):active { transform: scale(0.97); }
 .who-name { display: flex; align-items: center; min-width: 0; }
 .who-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who-tries { flex-shrink: 0; }
+.players .who { flex-wrap: wrap; }
+.who-remove { width: auto; margin: 0; padding: 0.35rem 0.7rem; min-height: auto; font-size: 0.8rem; font-weight: 700; }
 
 .secret-box { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .secret-box button { width: auto; margin: 0; padding: 0.5rem 0.8rem; min-height: 2.6rem; }

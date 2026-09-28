@@ -138,6 +138,7 @@ export function GuessFeed({ players, playerId, digitNotes }) {
         key: `${p.id}-${h.at}`,
         playerId: p.id,
         name: p.name,
+        removed: !!p.removed,
         tryNum: i + 1,
         guess: h.guess,
         stars: h.stars,
@@ -160,7 +161,7 @@ export function GuessFeed({ players, playerId, digitNotes }) {
           <li key={g.key} className="guess-feed-item">
             <div className="guess-feed-head">
               <span className={`guess-feed-name${mine ? " guess-feed-name--mine" : ""}`} title={g.name}>
-                {mine ? "You" : g.name}
+                {mine ? "You" : g.name}{g.removed ? " (left)" : ""}
               </span>
               <span className="guess-feed-try small muted">Try {g.tryNum}</span>
             </div>
@@ -392,7 +393,7 @@ export function ScratchSheet({ open, onClose, players, playerId, notes, onToggle
   const all = [];
   for (const p of players) {
     p.history.forEach((h, i) => {
-      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
+      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, removed: !!p.removed, tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
     });
   }
   all.sort((a, b) => a.at - b.at);
@@ -428,7 +429,7 @@ export function ScratchSheet({ open, onClose, players, playerId, notes, onToggle
             return (
               <div key={g.key} className="sheet-row">
                 <span className="sheet-col sheet-num">{i + 1}</span>
-                <span className="sheet-col sheet-name" title={g.name}>{mine ? "You" : g.name}</span>
+                <span className="sheet-col sheet-name" title={g.name}>{mine ? "You" : g.name}{g.removed ? " (left)" : ""}</span>
                 <span className="sheet-col sheet-digits">
                   {g.guess.split("").map((ch, di) => {
                     const mark = notes.digits[ch];
@@ -451,13 +452,13 @@ export function ScratchSheet({ open, onClose, players, playerId, notes, onToggle
                     </>
                   )}
                 </span>
+                
               </div>
+              
             );
           })
         )}
-      </div>
-
-      <div className="sheet-draft">
+        <div className="sheet-draft">
         <div className="sheet-row sheet-draft-row">
           <span className="sheet-col sheet-num" aria-hidden="true" />
           <span className="sheet-col sheet-name">My draft</span>
@@ -471,6 +472,7 @@ export function ScratchSheet({ open, onClose, players, playerId, notes, onToggle
             compact
           />
         </div>
+      </div>
       </div>
     </dialog>
   );

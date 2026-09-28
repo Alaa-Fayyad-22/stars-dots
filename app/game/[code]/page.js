@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { GuessRow, Legend, DigitEntry, TurnBanner, GuessFeed, PlayerNotes, DraftBoxes, ScratchSheet } from "../../Board";
@@ -14,6 +14,7 @@ export default function Game() {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     setPlayerId(loadPlayer(code));
@@ -21,7 +22,12 @@ export default function Game() {
   }, [code]);
 
   const refresh = useCallback(async () => {
+    const id = ++requestIdRef.current;
     const res = await fetch(`/api/state?code=${code}&playerId=${playerId || ""}`, { cache: "no-store" });
+    // A newer request may have started (and even finished) while this one was
+    // in flight. If so, its response is stale — drop it instead of letting it
+    // clobber more recent state.
+    if (id !== requestIdRef.current) return;
     if (res.status === 404) { setNotFound(true); return; }
     if (res.ok) setState(await res.json());
   }, [code, playerId]);
@@ -122,6 +128,26 @@ function PlayerView({ state, code, playerId, onGuess }) {
   const canGuess = myTurn && !state.winner && !state.me.solved;
   const { notes, toggleDigit, setDraft, clearDraft, clear } = usePlayerNotes(code, state.round);
 
+  if (state.me.removed) {
+    return (
+      <>
+        <div className="col-main">
+          <section>
+            <div className="turn-banner turn-banner--waiting" role="status">
+              <span>You've been removed from this game by the host.</span>
+            </div>
+          </section>
+        </div>
+        <div className="col-side">
+          <section>
+            <h2>Everyone's guesses</h2>
+            <GuessFeed players={state.players} playerId={playerId} />
+          </section>
+        </div>
+      </>
+    );
+  }
+
   async function submit() {
     if (busy || guess.length !== 4 || !canGuess) return;
     setBusy(true); setError("");
@@ -220,7 +246,10 @@ function HostView({ state, code, playerId, onAction }) {
   const [busy, setBusy] = useState(false);
   const [skipBusy, setSkipBusy] = useState(false);
   const [skipError, setSkipError] = useState("");
+  const [removeBusyId, setRemoveBusyId] = useState(null);
+  const [removeError, setRemoveError] = useState("");
   const current = state.players.find((p) => p.id === state.currentPlayerId);
+  const activePlayers = state.players.filter((p) => !p.removed);
 
   async function startRound() {
     if (busy || next.length !== 4) return;
@@ -236,6 +265,14 @@ function HostView({ state, code, playerId, onAction }) {
     try { await post("/api/skipturn", { code, playerId }); await onAction(); }
     catch (e) { setSkipError(e.message); }
     setSkipBusy(false);
+  }
+
+  async function removePlayerFromGame(targetPlayerId) {
+    if (removeBusyId) return;
+    setRemoveBusyId(targetPlayerId); setRemoveError("");
+    try { await post("/api/remove", { code, playerId, targetPlayerId }); await onAction(); }
+    catch (e) { setRemoveError(e.message); }
+    setRemoveBusyId(null);
   }
 
   return (
@@ -271,15 +308,22 @@ function HostView({ state, code, playerId, onAction }) {
 
       <div className="col-side">
         <section>
-          <h2>Players ({state.players.length})</h2>
-          {state.players.length === 0 ? (
+          <h2>Players ({activePlayers.length})</h2>
+          {activePlayers.length === 0 ? (
             <div className="state-card state-card--inline">
               <p className="muted">Nobody has joined yet.</p>
               <p className="small muted">Share the code <strong>{code}</strong> or tap Invite above.</p>
             </div>
           ) : (
             <>
-              <PlayerList players={state.players} playerId={null} currentPlayerId={state.winner ? null : state.currentPlayerId} />
+              <PlayerList
+                players={state.players}
+                playerId={null}
+                currentPlayerId={state.winner ? null : state.currentPlayerId}
+                onRemove={removePlayerFromGame}
+                removeBusyId={removeBusyId}
+              />
+              {removeError && <p className="error" role="alert">{removeError}</p>}
               {!state.winner && (
                 <>
                   <button className="secondary" onClick={skipTurn} disabled={skipBusy}>
@@ -304,13 +348,14 @@ function HostView({ state, code, playerId, onAction }) {
   );
 }
 
-function PlayerList({ players, playerId, currentPlayerId }) {
-  if (players.length === 0) {
+function PlayerList({ players, playerId, currentPlayerId, onRemove, removeBusyId }) {
+  const active = players.filter((p) => !p.removed);
+  if (active.length === 0) {
     return <p className="muted">It's just you so far. Send the invite to get others in.</p>;
   }
   return (
     <ul className="players">
-      {players.map((p) => (
+      {active.map((p) => (
         <li key={p.id} className={`who${p.id === currentPlayerId ? " who--turn" : ""}`}>
           <span className="who-name">
             {p.id === currentPlayerId ? <span className="turn-arrow" aria-hidden="true">▶</span> : null}
@@ -319,6 +364,11 @@ function PlayerList({ players, playerId, currentPlayerId }) {
           <span className={`who-tries ${p.solved ? "solved" : "muted"}`}>
             {p.solved ? `Solved in ${p.tries}` : `${p.tries} ${p.tries === 1 ? "try" : "tries"}`}
           </span>
+          {onRemove && (
+            <button type="button" className="secondary who-remove" onClick={() => onRemove(p.id)} disabled={!!removeBusyId}>
+              Remove
+            </button>
+          )}
         </li>
       ))}
     </ul>
