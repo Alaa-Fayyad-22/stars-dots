@@ -351,6 +351,14 @@ function GameView({ state, code, playerId, onAction }) {
     setRemoveBusyId(null);
   }
 
+  async function restorePlayerInGame(targetPlayerId) {
+    if (removeBusyId) return;
+    setRemoveBusyId(targetPlayerId); setRemoveError("");
+    try { await post("/api/restore", { code, playerId, targetPlayerId }); await onAction(); }
+    catch (e) { setRemoveError(e.message); }
+    setRemoveBusyId(null);
+}
+
   if (state.me.removed) {
     const leftVoluntarily = state.me.leaveReason === "left";
     return (
@@ -469,6 +477,30 @@ function GameView({ state, code, playerId, onAction }) {
               removeBusyId={removeBusyId}
             />
             {removeError && <p className="error" role="alert">{removeError}</p>}
+            {isControlsHolder && state.players.some((p) => p.removed && p.leaveReason === "removed") && (
+              <>
+                <h3>Removed players</h3>
+                <ul className="players">
+                  {state.players
+                    .filter((p) => p.removed && p.leaveReason === "removed")
+                    .map((p) => (
+                      <li key={p.id} className="who">
+                        <span className="who-name">
+                          <span className="who-name-text">{p.name}</span>
+                        </span>
+                        <button
+                          type="button"
+                          className="secondary who-remove"
+                          onClick={() => restorePlayerInGame(p.id)}
+                          disabled={!!removeBusyId}
+                        >
+                          Restore
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </>
+            )}
             {isControlsHolder && (
               <>
                 {state.roundState === "active" && (
