@@ -41,7 +41,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
   // time in the phone chat bar and in the scratch sheet's header.
   const maxVisible = wide && !sheetOpen ? MAX_TOASTS : 1;
   const [open, setOpen] = useState(false); // phone: the sheet
-  const [expanded, setExpanded] = useState(true); // wide: the side panel
+  const [expanded, setExpanded] = useState(false); // wide: the side panel
   const [panelInView, setPanelInView] = useState(false);
   const [tabHidden, setTabHidden] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -120,7 +120,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
     fresh.forEach((m) => known.current.add(m.id));
     const others = fresh.filter((m) => m.playerId !== playerId);
     if (!others.length || visibleRef.current) return;
-    setUnread((n) => n + others.length);
+    setUnread((n) => n + others.filter((m) => !m.presetId).length);
     setToasts((q) => [...q, ...others.map((m) => ({ id: m.id, name: m.name, text: m.text, presetId: m.presetId }))]);
     // One sound per batch: the newest message's own sound, or the default.
     const last = others[others.length - 1];
@@ -391,7 +391,9 @@ function ChatMessage({ m, mine, label }) {
 // The chat itself: messages and the text box. Used inside the phone sheet and
 // the wide-screen side panel. (Quick statements live in the 😀 picker.)
 export function ChatPanel({ chat }) {
-  const { messages, canSend, playerId, draft, setDraft, sending, error, setError, send, awayIds } = chat;
+  const { messages: allMessages, canSend, playerId, draft, setDraft, sending, error, setError, send, awayIds } = chat;
+  // Quick statements only pop up as notifications; they're not shown in the chat list.
+  const messages = allMessages.filter((m) => !m.presetId);
   const listRef = useRef(null);
   const pinned = useRef(true);
   const lastSeen = useRef(null);
@@ -511,7 +513,8 @@ export function ChatSection({ chat }) {
 export function ChatDock({ chat, hidden }) {
   const { unread, open, typing, openChat, messages, toasts, dismissToast, pickerId } = chat;
   const alert = toasts[0];
-  const last = messages[messages.length - 1];
+  const chatOnly = messages.filter((m) => !m.presetId);
+  const last = chatOnly[chatOnly.length - 1];
   const preview = last ? `${last.playerId === chat.playerId ? "You" : last.name}: ${last.text}` : "Say something to the table";
   const [collapsed, setCollapsed] = useState(false);
 
