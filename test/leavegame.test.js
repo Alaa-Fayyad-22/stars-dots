@@ -118,7 +118,7 @@ export default async function run({ game, fake, T }) {
     T.assert(room3.controlsId && room3.controlsId !== firstControls, "controls should have passed to someone else");
   });
 
-  await T.test("winning a hostless round still makes the winner the next host", async () => {
+  await T.test("winning a hostless round: the winner scores, and hosting continues from the departed host's place in join order", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 3 });
     const room = rawRoom(fake, code);
     const secret = randomValidNumber(4);
@@ -134,11 +134,13 @@ export default async function run({ game, fake, T }) {
     }
     T.assert(!!winnerId, "someone should have won");
     const room2 = rawRoom(fake, code);
-    T.eq(room2.hostId, winnerId, "the winner becomes the next host, hostless round or not");
-    T.eq(room2.controlsId, winnerId, "and picks up controls too");
+    const departedIdx = players.findIndex((p) => p.id === room.hostId);
+    const expected = players[(departedIdx + 1) % players.length].id;
+    T.eq(room2.hostId, expected, "the next host is the next active player after the departed host, not the winner");
+    T.eq(room2.controlsId, expected, "and they pick up controls");
   });
 
-  await T.test("ending a hostless round hands hosting to whoever was holding controls", async () => {
+  await T.test("ending a hostless round continues the rotation from the departed host's place", async () => {
     const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 3 });
     const room = rawRoom(fake, code);
     await game.pickSecret(code, room.hostId, randomValidNumber(4));
@@ -148,7 +150,8 @@ export default async function run({ game, fake, T }) {
     const out = await game.endRound(code, room2.controlsId);
     T.assert(!out.error, `ending a hostless round should succeed, got: ${out.error}`);
     const room3 = rawRoom(fake, code);
-    T.eq(room3.hostId, room2.controlsId, "the controls-holder becomes the next host");
+    const dIdx = players.findIndex((p) => p.id === room.hostId);
+    T.eq(room3.hostId, players[(dIdx + 1) % players.length].id, "next active player after the departed host becomes host");
     T.eq(room3.roundState, "pending", "waiting for the new host to pick a number");
   });
 

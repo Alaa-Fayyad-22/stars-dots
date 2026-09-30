@@ -12,7 +12,7 @@ import {
 export default async function run({ game, fake, T }) {
   T.suite("Full check: permission matrix + long mixed-event playthroughs");
 
-  await T.test("permission matrix: a normal player, a removed player, and a left player are all rejected from every host/organizer action", async () => {
+  await T.test("permission matrix: a normal player, a removed player, and a left player are all rejected from every host/organizer action (a normal player CAN leave)", async () => {
     for (const mode of ["rotating", "computer"]) {
       const { code, players } = await createGameWithPlayers(game, { mode, digits: 4, count: 4 });
       const room = rawRoom(fake, code);
@@ -49,11 +49,10 @@ export default async function run({ game, fake, T }) {
         const end = await game.endRound(targetCode, actorId);
         T.assert(!!end.error, `${label} should not be able to end the round (${mode})`);
 
-        const leave = await game.leaveGame(targetCode, actorId);
-        if (label === "a left former host/organizer") {
+        // Everyone in the game can leave — but not someone already away or removed.
+        if (label !== "a normal player") {
+          const leave = await game.leaveGame(targetCode, actorId);
           T.assert(!!leave.error, `${label} should not be able to leave again (${mode})`);
-        } else {
-          T.assert(!!leave.error, `${label} should not be able to use Leave game — they never held controls (${mode})`);
         }
       }
     }
@@ -232,7 +231,7 @@ export default async function run({ game, fake, T }) {
     });
   }
 
-  await T.test("left players can't rejoin their old seat (rotating host, computer organizer)", async () => {
+  await T.test("left players CAN rejoin (as normal players); removed players can't (rotating host, computer organizer)", async () => {
     for (const mode of ["rotating", "computer"]) {
       const { code, players } = await createGameWithPlayers(game, { mode, digits: 4, count: 3 });
       const room = rawRoom(fake, code);
@@ -241,7 +240,10 @@ export default async function run({ game, fake, T }) {
       const out = await game.leaveGame(code, holderId);
       T.assert(!out.error, `${mode}: leave should succeed, got: ${out.error}`);
       const rejoinAttempt = await game.rejoinRoom(code, holderName, "1111");
-      T.assert(!!rejoinAttempt.error, `${mode}: a player who left should not be able to rejoin`);
+      T.assert(!rejoinAttempt.error, `${mode}: a player who left should be able to come back, got: ${rejoinAttempt.error}`);
+      const back = await game.getState(code, holderId);
+      T.assert(back.me && !back.me.removed, `${mode}: they're a normal player again`);
+      T.assert(!back.isHost && !back.isControlsHolder, `${mode}: never automatically host or organizer again`);
     }
   });
 }

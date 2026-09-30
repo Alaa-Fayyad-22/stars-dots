@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { digitsOnly, isValidNumber, pinOnly, describePegs } from "@/lib/client";
+import { digitsOnly, isValidNumber, pinOnly, describePegs, awayTag } from "@/lib/client";
 
 // A guess shown as N tiles with star/dot pegs next to it. `digitNotes` (from
 // the digit notepad) optionally fades/highlights individual digits — it
@@ -48,9 +48,9 @@ export function Legend() {
 
 // Text input for the secret / a guess. Both typing and pasting go through
 // digitsOnly so repeats and a leading 0 never make it into the value.
-export function DigitEntry({ id, label, value, onChange, disabled, mask, autoFocus, onEnter, help, digits = 4 }) {
+export function DigitEntry({ id, label, value, onChange, disabled, mask, autoFocus, onEnter, help, digits = 4, guard }) {
   return (
-    <div className="digit-entry">
+    <div className="digit-entry" data-guard={guard}>
       {label && <label htmlFor={id}>{label}</label>}
       <input
         id={id}
@@ -120,7 +120,7 @@ export function HowToPlay({ digits = 4 }) {
   return (
     <div className="how-to-play">
       <ol className="how-steps">
-        <li>One person hosts and secretly picks a {digits}-digit number — {digits} different digits, not starting with 0, like <strong>{secret}</strong>.</li>
+        <li>One person hosts and secretly picks a {digits}-digit number — {digits} different digits, not starting with 0, like <strong>{secret}</strong>. In a rotating game, hosting goes around so everyone gets a turn, in the order players joined.</li>
         <li>Everyone else takes turns guessing {digits}-digit numbers (same rule: no repeats, no leading 0).</li>
         <li>Every guess gets stars and dots: a <strong>★ star</strong> for each digit in the exact right spot, a <strong>● dot</strong> for each digit that's correct but in the wrong spot.</li>
         <li>First to guess all {digits} in the right spot ({allStars}) wins the round.</li>
@@ -155,7 +155,7 @@ export function ModeChoice({ value, onChange }) {
         onClick={() => onChange("rotating")}
       >
         <div className="mode-card-title">Rotating host</div>
-        <div className="mode-card-desc small muted">Winner picks the next number. Everyone takes a turn hosting.</div>
+        <div className="mode-card-desc small muted">Hosting rotates through everyone, in the order they joined. Each round, the next player picks the number.</div>
       </button>
       <button
         type="button"
@@ -207,14 +207,14 @@ export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy }
   const hostlessNote = mode === "rotating" && roundState === "active" && !hostName && controlsHolderName ? (
     <p className="small muted hostless-note">
       The host left this round — play continues, and nobody holds the secret right now.
-      {isControlsHolder ? " You're holding the host controls until someone wins." : ` ${controlsHolderName} is holding the host controls.`}
+      {isControlsHolder ? " You're holding the host controls until the round ends." : ` ${controlsHolderName} is holding the host controls.`}
     </p>
   ) : null;
 
   if (roundState === "pending") {
     // Rotating mode moves straight from "active" to "pending" the instant a
-    // round ends (the winner becomes host of the next one), so this is the
-    // only state where the just-finished round's outcome is ever visible —
+    // round ends (hosting passes to the next player in the rotation), so this
+    // is the only state where the just-finished round's outcome is ever visible —
     // winner/revealedSecret stay populated here until the new host picks a
     // number, at which point pickSecret() clears them.
     const justEnded = winner ? (
@@ -345,7 +345,7 @@ export function Scoreboard({ scoreboard, playerId }) {
             >
               <td className="scoreboard-rank">{e.rank ?? "–"}</td>
               <td className="scoreboard-name">
-                {e.name}{e.removed ? " (left)" : ""}{e.id === playerId ? " (you)" : ""}
+                {e.name}{awayTag(e)}{e.id === playerId ? " (you)" : ""}
               </td>
               <td className="scoreboard-num">{e.wins}</td>
               <td className="scoreboard-num">{e.avgTries != null ? e.avgTries.toFixed(1) : "–"}</td>
@@ -409,7 +409,7 @@ export function GuessFeed({ players, playerId, digitNotes }) {
         key: `${p.id}-${h.at}`,
         playerId: p.id,
         name: p.name,
-        removed: !!p.removed,
+        tag: awayTag(p),
         tryNum: i + 1,
         guess: h.guess,
         stars: h.stars,
@@ -432,7 +432,7 @@ export function GuessFeed({ players, playerId, digitNotes }) {
           <li key={g.key} className="guess-feed-item">
             <div className="guess-feed-head">
               <span className={`guess-feed-name${mine ? " guess-feed-name--mine" : ""}`} title={g.name}>
-                {mine ? "You" : g.name}{g.removed ? " (left)" : ""}
+                {mine ? "You" : g.name}{g.tag}
               </span>
               <span className="guess-feed-try small muted">Try {g.tryNum}</span>
             </div>
@@ -554,7 +554,7 @@ export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onCle
   }
 
   return (
-    <div className={`draft-boxes-wrap${compact ? " draft-boxes-wrap--compact" : ""}`}>
+    <div className={`draft-boxes-wrap${compact ? " draft-boxes-wrap--compact" : ""}`} data-guard="draft">
       <div className="draft-boxes" role="group" aria-label="Draft number">
         {draft.map((val, i) => {
           const faded = !!val && digitNotes?.[val] === "cross";
@@ -585,7 +585,7 @@ export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onCle
           </button>
         )}
         {onSubmitGuess && (
-          <button type="button" className="secondary draft-submit" onClick={onSubmitGuess} disabled={submitDisabled || submitBusy}>
+          <button type="button" className="secondary draft-submit" data-guard="submit" onClick={onSubmitGuess} disabled={submitDisabled || submitBusy}>
             {submitBusy ? "Submitting…" : "Submit guess"}
           </button>
         )}
@@ -603,7 +603,7 @@ export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onCle
 // nothing here computes or reveals anything about the secret.
 export function ScratchSheet({
   open, onClose, players, playerId, notes, digits = 4, onToggleDigit, onChangeDraft, onClearDraft, onUseAsGuess,
-  onSubmitGuess, submitDisabled, submitBusy, submitMessage, turnStatus, overlay,
+  onSubmitGuess, submitDisabled, submitBusy, submitMessage, turnStatus, overlay, headerExtra, topToast,
 }) {
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
@@ -674,7 +674,7 @@ export function ScratchSheet({
   const all = [];
   for (const p of players) {
     p.history.forEach((h, i) => {
-      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, removed: !!p.removed, tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
+      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, tag: awayTag(p), tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
     });
   }
   all.sort((a, b) => a.at - b.at);
@@ -700,8 +700,12 @@ export function ScratchSheet({
             <p className={`sheet-status${turnStatus.mine ? " sheet-status--mine" : ""}`} role="status">{turnStatus.text}</p>
           )}
         </div>
-        <button type="button" ref={closeRef} className="secondary sheet-close" onClick={onClose} aria-label="Close scratch sheet">✕</button>
+        <div className="sheet-head-actions">
+          {headerExtra}
+          <button type="button" ref={closeRef} className="secondary sheet-close" onClick={onClose} aria-label="Close scratch sheet">✕</button>
+        </div>
         {overlay}
+        {topToast}
       </div>
 
       <CompactNotepad notes={notes} onToggleDigit={onToggleDigit} />
@@ -716,7 +720,7 @@ export function ScratchSheet({
             return (
               <div key={g.key} className="sheet-row">
                 <span className="sheet-col sheet-num">{i + 1}</span>
-                <span className="sheet-col sheet-name" title={g.name}>{mine ? "You" : g.name}{g.removed ? " (left)" : ""}</span>
+                <span className="sheet-col sheet-name" title={g.name}>{mine ? "You" : g.name}{g.tag}</span>
                 <span className="sheet-col sheet-digits">
                   {g.guess.split("").map((ch, di) => {
                     const mark = notes.digits[ch];

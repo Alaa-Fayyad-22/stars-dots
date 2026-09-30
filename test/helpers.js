@@ -171,3 +171,47 @@ export async function assertNoSecretLeak(T, game, fake, code, players) {
   const anon = await game.getState(code, "not-a-real-player-id-00000000");
   T.eq(anon.secret, null, "an unjoined/anonymous viewer saw a secret");
 }
+
+// Tests talk to lib/game.js as real people would: with a public id AND a
+// private token. This wrapper remembers the token that create/join/rejoin
+// return for each id, and turns a plain id string into `{ id, token }` for
+// every call that acts as a person — so test bodies can keep passing ids.
+// Anything already shaped like `{ id, token }` (attack tests) passes through.
+export function wrapGame(raw) {
+  const tokens = new Map();
+  const asActor = (v) => (v && typeof v === "object" ? v : { id: v, token: tokens.get(v) });
+  const learn = (out) => { if (out && out.playerId && out.token) tokens.set(out.playerId, out.token); return out; };
+  const actorAt = {
+    getState: [1], pickSecret: [1], submitGuess: [1], skipTurn: [1], removePlayer: [1], restorePlayer: [1],
+    endRound: [1], newRound: [1], leaveGame: [1], comeBack: [1], sendChatMessage: [1],
+  };
+  const wrapped = { ...raw, tokens, tokenOf: (id) => tokens.get(id) };
+  for (const name of ["createRoom", "joinRoom", "rejoinRoom"]) wrapped[name] = async (...a) => learn(await raw[name](...a));
+  for (const [name, idx] of Object.entries(actorAt)) {
+    if (!raw[name]) continue;
+    wrapped[name] = (...args) => {
+      for (const i of idx) args[i] = asActor(args[i]);
+      return raw[name](...args);
+    };
+  }
+  return wrapped;
+}
+
+const ID_KEYS = new Set(["id", "playerId", "hostId", "controlsHolderId", "currentPlayerId", "code", "name", "hostName", "organizerName", "controlsHolderName", "winnerName"]);
+// Where a finished round's number is allowed to be public.
+const REVEAL_KEYS = new Set(["revealedSecret", "revealedRound", "rounds"]);
+
+// Every string/number leaf of a response that could carry the live number.
+// (Ids are random UUIDs and may contain digit runs by chance, so they're
+// skipped; a number is only ever a guess/digit string or a plain integer.)
+export function leaks(value, secret, path = "") {
+  if (value === null || value === undefined) return [];
+  if (typeof value === "string") return value.includes(secret) ? [`${path}=${value}`] : [];
+  if (typeof value === "number") return value === Number(secret) ? [`${path}=${value}`] : [];
+  if (Array.isArray(value)) return value.flatMap((v, i) => leaks(v, secret, `${path}[${i}]`));
+  if (typeof value === "object") {
+    return Object.entries(value).flatMap(([k, v]) => (ID_KEYS.has(k) || REVEAL_KEYS.has(k) ? [] : leaks(v, secret, `${path}.${k}`)));
+  }
+  return [];
+}
+

@@ -1,5 +1,5 @@
 import { createFakeUpstash } from "./fake-upstash.js";
-import { makeT } from "./helpers.js";
+import { makeT, wrapGame } from "./helpers.js";
 
 const fake = createFakeUpstash();
 const url = await fake.listen();
@@ -10,7 +10,7 @@ process.env.UPSTASH_REDIS_REST_TOKEN = "test-token";
 delete process.env.KV_REST_API_URL;
 delete process.env.KV_REST_API_TOKEN;
 
-const game = await import("../lib/game.js");
+const game = wrapGame(await import("../lib/game.js"));
 const T = makeT();
 
 const suites = [
@@ -32,6 +32,10 @@ const suites = [
   "./playthrough.test.js",
   "./chat.test.js",
   "./turntext.test.js",
+  "./rotation.test.js",
+  "./comeback.test.js",
+  "./security.test.js",
+  "./perf.test.js",
 ];
 
 for (const path of suites) {

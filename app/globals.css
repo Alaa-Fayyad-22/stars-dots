@@ -141,7 +141,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 
 /* Join-screen "Already in this game?" tabs and rejoin panel */
 .entry-tabs { display: flex; gap: 0.5rem; margin: 0.9rem 0 0.2rem; }
-.entry-tab { margin: 0; padding: 0.55rem 0.7rem; min-height: 2.6rem; font-size: 0.9rem; }
+.entry-tab { margin: 0; padding: 0.55rem 0.7rem; min-height: 44px; font-size: 0.9rem; }
 .entry-tab--selected { background: var(--ink); color: var(--paper); }
 .rejoin-panel { margin-top: 0.6rem; }
 
@@ -151,7 +151,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .confirm-actions button { margin-top: 0; }
 
 /* Extra call-to-action inside a turn banner (e.g. "Next round") */
-.banner-action { width: auto; display: inline-block; margin: 0.5rem 0 0; padding: 0.4rem 0.75rem; min-height: 2.2rem; font-size: 0.85rem; background: transparent; }
+.banner-action { width: auto; display: inline-block; margin: 0.5rem 0 0; padding: 0.4rem 0.75rem; min-height: 44px; font-size: 0.85rem; background: transparent; }
 .turn-banner--mine .banner-action, .turn-banner--won .banner-action { border-color: var(--ink); color: var(--ink); }
 .banner-note { display: block; margin-top: 0.3rem; font-weight: 600; }
 
@@ -211,7 +211,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .room-code--big { font-size: clamp(2.4rem, 14vw, 3.4rem); margin: 0.3rem 0 1.1rem; }
 .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
 .topbar-actions { display: flex; gap: 0.5rem; }
-.topbar button { width: auto; margin: 0; padding: 0.55rem 0.9rem; min-height: 2.6rem; }
+.topbar button { width: auto; margin: 0; padding: 0.55rem 0.9rem; min-height: 44px; }
 
 .state-card { padding-top: 1rem; }
 .state-card--inline { padding: 1rem 0 0; }
@@ -265,7 +265,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .who-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who-tries { flex-shrink: 0; }
 .players .who { flex-wrap: wrap; }
-.who-remove { width: auto; margin: 0; padding: 0.35rem 0.7rem; min-height: auto; font-size: 0.8rem; font-weight: 700; }
+.who-remove { width: auto; margin: 0; padding: 0.35rem 0.8rem; min-height: 44px; min-width: 44px; font-size: 0.85rem; font-weight: 700; }
 
 .secret-box { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .secret-box button { width: auto; margin: 0; padding: 0.5rem 0.8rem; min-height: 2.6rem; }
@@ -296,7 +296,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 /* Player notes: private, manual, never sent to the server */
 .notes-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
 .notes-head h3 { font-size: 1.05rem; font-weight: 800; margin: 0; }
-.notes-clear { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 2.4rem; font-size: 0.9rem; }
+.notes-clear { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 44px; font-size: 0.9rem; }
 .notes-hint { margin: 0.3rem 0 0.8rem; }
 
 .notepad-digits {
@@ -354,7 +354,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .draft-box--faded { opacity: 0.5; text-decoration: line-through; text-decoration-color: var(--danger); text-decoration-thickness: 2px; }
 
 .draft-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-.draft-actions button { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 2.4rem; font-size: 0.9rem; }
+.draft-actions button { width: auto; margin: 0; padding: 0.45rem 0.8rem; min-height: 44px; font-size: 0.9rem; }
 .draft-use { border-color: var(--star); color: var(--star); }
 .draft-submit-message { margin: 0.4rem 0 0; }
 
@@ -369,7 +369,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .draft-boxes-wrap--compact { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
 .draft-boxes-wrap--compact .draft-boxes { gap: 0.15rem; }
 .draft-boxes-wrap--compact .draft-actions { gap: 0.4rem; }
-.draft-boxes-wrap--compact .draft-actions button { padding: 0.3rem 0.6rem; min-height: 1.8rem; font-size: 0.8rem; margin: 0; }
+.draft-boxes-wrap--compact .draft-actions button { padding: 0.3rem 0.6rem; min-height: 44px; font-size: 0.8rem; margin: 0; }
 .draft-boxes-wrap--compact .draft-submit-message { font-size: 0.78rem; max-width: 100%; overflow-wrap: break-word; }
 
 /* Scratch sheet: a dense, paper-styled dialog */
@@ -429,8 +429,8 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 .sheet-head h2 { margin: 0; font-size: 1.05rem; }
 .sheet-close {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 44px;
+  height: 44px;
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -450,7 +450,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .sheet-notepad-digit {
   flex: 1 1 0;
   min-width: 36px;
-  min-height: 34px;
+  min-height: 44px;
   margin: 0;
   padding: 0;
   font-family: var(--digits);
@@ -528,7 +528,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .two-up { display: block; }
 
 @media (min-width: 720px) {
-  .shell { max-width: 46rem; }
+  .shell { max-width: 46rem; padding-bottom: calc(3rem + 4.5rem + env(safe-area-inset-bottom, 0px)); }
   .two-up {
     display: grid;
     grid-template-columns: 1.15fr 0.85fr;
@@ -563,8 +563,9 @@ button:not(:disabled):active { transform: scale(0.97); }
 /* Chat: message list, quick statements, text box */
 .chat-section-head { display: flex; align-items: center; gap: 0.6rem; }
 .chat-section-head h2 { margin: 0; margin-right: auto; }
-.chat-toggle { width: auto; margin: 0; padding: 0.35rem 0.8rem; min-height: 2.2rem; font-size: 0.85rem; }
+.chat-toggle { width: auto; margin: 0; padding: 0.35rem 0.8rem; min-height: 44px; font-size: 0.85rem; }
 .chat-panel { display: flex; flex-direction: column; gap: 0.7rem; min-height: 0; margin-top: 0.75rem; }
+.chat-list-wrap { position: relative; display: flex; flex-direction: column; min-height: 0; }
 .chat-list {
   list-style: none; margin: 0; padding: 0.6rem;
   height: 16rem; overflow-y: auto; overscroll-behavior: contain;
@@ -573,6 +574,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 .chat-empty { margin: auto; text-align: center; }
 .chat-msg {
+  position: relative;
   align-self: flex-start; max-width: 88%; min-width: 0;
   padding: 0.4rem 0.7rem; border-radius: 12px 12px 12px 4px;
   background: var(--tile); border: 1px solid var(--line);
@@ -587,10 +589,21 @@ button:not(:disabled):active { transform: scale(0.97); }
 .chat-msg--preset.chat-msg--mine { border-left-color: var(--star); }
 .chat-name { display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted); line-height: 1.3; }
 .chat-text { display: block; }
-.chat-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.chat-chip {
-  width: auto; margin: 0; min-height: 2.5rem; padding: 0.3rem 0.85rem;
-  font-size: 0.9rem; border-radius: 999px; border-color: var(--dot);
+.chat-copied {
+  position: absolute; top: -0.55rem; right: 0.5rem;
+  padding: 0.05rem 0.55rem; border-radius: 999px;
+  background: var(--ink); color: var(--paper); font-size: 0.72rem; font-weight: 800; line-height: 1.5;
+  pointer-events: none;
+}
+.chat-newpill {
+  position: absolute; left: 50%; bottom: 0.7rem; transform: translateX(-50%);
+  width: auto; margin: 0; min-height: 44px; padding: 0.3rem 1rem; border-radius: 999px;
+  background: var(--ink); color: var(--paper); border-color: var(--ink); font-size: 0.9rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat-newpill { animation: pill-in 0.2s ease-out; }
+  @keyframes pill-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 }
 .chat-form { display: flex; gap: 0.5rem; }
 .chat-input { flex: 1 1 auto; min-width: 0; }
@@ -612,7 +625,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   background: var(--paper); border-top: 2px solid var(--line);
 }
 .chat-dock--hidden { display: none; }
-.chat-dock-row { display: flex; align-items: stretch; max-width: 46rem; margin: 0 auto; }
+.chat-dock-row { position: relative; display: flex; align-items: stretch; max-width: 46rem; margin: 0 auto; }
 .chat-dock-btn {
   display: flex; align-items: center; gap: 0.6rem;
   flex: 1 1 auto; min-width: 0; width: auto; min-height: 3.25rem; margin: 0;
@@ -634,6 +647,22 @@ button:not(:disabled):active { transform: scale(0.97); }
 .chat-dock--alert { background: var(--ink); color: var(--paper); border-top-color: var(--ink); }
 .chat-dock--alert .chat-dock-name { color: var(--star); }
 .chat-dock--alert .chat-dock-btn { color: var(--paper); }
+.chat-dock--alert .qs-btn { color: var(--paper); }
+
+/* A new message: a short warm pulse across the bar (reduced motion: just the color change above). */
+.chat-dock-flash { position: absolute; inset: 0; pointer-events: none; background: var(--star); opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .chat-dock-flash { animation: dock-flash 0.9s ease-out; }
+  @keyframes dock-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+}
+
+/* Scrolled down the page: a slimmer handle. Badge and the 😀 button stay; the lane the bar reserves doesn't change. */
+.chat-dock--slim .chat-dock-btn, .chat-dock--slim .qs--dock .qs-btn { min-height: 2.75rem; }
+.chat-dock--slim .chat-dock-label, .chat-dock--slim .chat-dock-preview { display: none; }
+.chat-dock--slim .qs--dock .qs-btn { font-size: 1.25rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .chat-dock-btn, .qs--dock .qs-btn { transition: min-height 0.18s ease; }
+}
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .chat-sheet {
@@ -654,24 +683,25 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 .chat-sheet--kb .chat-sheet-head { padding-top: 0.6rem; }
 .chat-sheet-head h2 { margin: 0; }
-.chat-sheet-close { width: 2.6rem; height: 2.6rem; min-height: 0; margin: 0; padding: 0; border-radius: 999px; }
+.chat-sheet-close { width: 44px; height: 44px; min-height: 0; margin: 0; padding: 0; border-radius: 999px; }
 .chat-sheet .chat-panel {
   flex: 1 1 auto; margin: 0; padding: 0.7rem 1rem calc(0.8rem + env(safe-area-inset-bottom, 0px));
 }
 .chat-sheet--kb .chat-panel { padding-bottom: 0.6rem; }
+.chat-sheet .chat-list-wrap { flex: 1 1 auto; }
 .chat-sheet .chat-list { flex: 1 1 auto; height: auto; min-height: 0; }
 
 /* Toasts for incoming messages: wide screens = bottom-right corner, stacking upward (phones use the chat bar) */
 .chat-toasts {
   position: fixed; z-index: 60;
   right: calc(1.2rem + env(safe-area-inset-right, 0px));
-  bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(1.2rem + 3.25rem + 0.6rem + env(safe-area-inset-bottom, 0px));
   width: min(22rem, 40vw);
   display: flex; flex-direction: column; gap: 0.4rem;
   pointer-events: none;
 }
 .chat-toast {
-  pointer-events: auto; display: flex; align-items: stretch; min-height: 2.75rem;
+  pointer-events: auto; touch-action: pan-y; display: flex; align-items: stretch; min-height: 3rem;
   border: 2px solid var(--ink); border-radius: 12px; overflow: hidden;
   background: var(--ink); color: var(--paper);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
@@ -694,8 +724,9 @@ button:not(:disabled):active { transform: scale(0.97); }
 .chat-toast-more { align-self: flex-end; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--panel); color: var(--muted); border: 1px solid var(--line); pointer-events: auto; }
 /* Inside the scratch sheet: one toast over the header's title text, leaving the
    sheet's ✕ button and everything below it uncovered. */
-.sheet-head { position: relative; }
-.chat-toasts--sheet { position: absolute; top: calc(0.4rem + env(safe-area-inset-top, 0px)); left: 0.5rem; right: 3.4rem; bottom: auto; width: auto; }
+.sheet-head { position: relative; z-index: 5; }
+.sheet-head-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.chat-toasts--sheet { position: absolute; z-index: 3; top: calc(0.4rem + env(safe-area-inset-top, 0px)); left: 0.5rem; right: 6.6rem; bottom: auto; width: auto; }
 @media (min-width: 720px) {
   .chat-toasts--sheet { top: 0.4rem; }
 }
@@ -703,3 +734,96 @@ button:not(:disabled):active { transform: scale(0.97); }
   .chat-toast { animation: toast-in 0.25s ease-out; }
   @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
+
+/* ---- Quick statements: the 😀 button and its picker ---- */
+.qs { position: relative; display: flex; }
+.qs-btn {
+  width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0;
+  display: grid; place-items: center; font-size: 1.35rem; line-height: 1;
+  background: transparent; color: var(--ink); border-radius: 999px;
+}
+/* Phone chat bar: split off on the right, behind a thin divider. */
+.qs--dock { flex: 0 0 auto; padding-right: env(safe-area-inset-right, 0px); }
+.qs--dock .qs-btn {
+  width: 3.5rem; height: auto; min-height: 3.25rem; border: 0; border-radius: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  color: inherit;
+}
+/* Tablet / laptop: bottom-right corner (notifications stack above it). */
+.qs--corner { position: fixed; z-index: 60; right: calc(1.2rem + env(safe-area-inset-right, 0px)); bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); }
+.qs--corner .qs-btn {
+  width: 3.25rem; height: 3.25rem; border: 2px solid var(--ink); background: var(--panel);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); font-size: 1.5rem;
+}
+/* Scratch sheet header, next to the close button. */
+.qs--sheet .qs-btn { border: 1px solid var(--sheet-ink); color: var(--sheet-ink); }
+
+.qs-pop {
+  position: absolute; z-index: 70; width: min(19rem, calc(100vw - 1.5rem));
+  padding: 0.6rem; background: var(--panel); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 14px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+.qs--above .qs-pop { bottom: calc(100% + 0.5rem); right: 0; }
+.qs--dock.qs--above .qs-pop { right: calc(0.5rem + env(safe-area-inset-right, 0px)); }
+.qs--below .qs-pop { top: calc(100% + 0.4rem); right: 0; }
+.qs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.qs-grid--single { grid-template-columns: minmax(0, 1fr); }
+.qs-chip {
+  width: 100%; margin: 0; min-height: 44px; padding: 0.4rem 0.6rem;
+  font-size: 0.95rem; line-height: 1.2; border-radius: 12px; border-color: var(--dot);
+  overflow-wrap: anywhere;
+}
+.qs-chip--sending { opacity: 0.7; }
+.qs-chip--sent { background: var(--win); border-color: var(--win); color: #06180d; opacity: 1; }
+.qs-error { margin: 0.5rem 0 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .qs-pop { animation: qs-in 0.14s ease-out; }
+  @keyframes qs-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+}
+
+/* ---- "Your turn!" notice: accent colored, so it's never mistaken for a message ---- */
+.turn-toast { position: fixed; z-index: 80; pointer-events: none; }
+.turn-toast-btn {
+  pointer-events: auto; width: auto; margin: 0; min-height: 44px; padding: 0.4rem 1.1rem;
+  background: var(--star); color: #201404; border: 2px solid #201404; border-radius: 999px;
+  font-size: 1.05rem; font-weight: 800; white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 0 4px color-mix(in srgb, var(--star) 30%, transparent);
+}
+.turn-toast--top { top: calc(0.75rem + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); }
+.turn-toast--top-right { top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: calc(0.75rem + env(safe-area-inset-right, 0px)); }
+.turn-toast--bottom { bottom: calc(3.25rem + 0.75rem + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); }
+.turn-toast--bottom-left { bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); left: calc(1.2rem + env(safe-area-inset-left, 0px)); }
+/* Inside a dialog (the scratch sheet or the chat): over the header's title text, clear of the buttons. */
+.turn-toast--sheet, .turn-toast--chat { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; display: flex; align-items: center; padding: 0 0.5rem; pointer-events: none; }
+.turn-toast--sheet { right: calc(44px * 2 + 0.4rem + 0.7rem + 0.7rem); background: var(--sheet-bg); }
+.turn-toast--chat { right: calc(44px + 1rem); background: var(--paper); }
+.turn-toast--sheet .turn-toast-btn, .turn-toast--chat .turn-toast-btn { box-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .turn-toast-btn { animation: turn-pop 0.25s ease-out; }
+  @keyframes turn-pop { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+
+/* ---- Room code + Copy code ---- */
+.room-code-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.copy-code { width: auto; margin: 0; min-height: 44px; padding: 0.4rem 0.9rem; font-size: 0.9rem; }
+
+/* ---- Host controls (collapsible) ---- */
+.hostctl { margin-top: 1rem; border: 2px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; }
+.hostctl-head {
+  display: flex; align-items: center; gap: 0.6rem; width: 100%; margin: 0; min-height: 48px; padding: 0.5rem 0.9rem;
+  border: 0; border-radius: 0; text-align: left; background: transparent;
+}
+.hostctl-title { font-weight: 800; flex: 0 0 auto; }
+.hostctl-summary { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--muted); font-size: 0.92rem; }
+.hostctl-chevron { flex: 0 0 auto; color: var(--muted); }
+.hostctl-body { padding: 0 0.9rem 0.9rem; border-top: 1px solid var(--line); }
+.hostctl-body > button:first-child { margin-top: 0.8rem; }
+
+/* ---- Player list: inline remove confirmation, away players, quiet Leave ---- */
+.who-confirm { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; width: 100%; padding-top: 0.4rem; }
+.who-confirm-text { flex: 1 1 auto; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.who-remove--yes { border-color: var(--danger); color: var(--danger); }
+.who--away { color: var(--muted); font-weight: 400; }
+.away-note { margin-top: 0.7rem; }
+.leave-row { margin-top: 1.2rem; padding-top: 0.6rem; border-top: 1px dashed var(--line); }
+.leave-quiet { width: auto; margin: 0; padding: 0.4rem 0.9rem; min-height: 44px; font-size: 0.9rem; color: var(--muted); border-color: var(--line); }

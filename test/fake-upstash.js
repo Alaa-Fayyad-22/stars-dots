@@ -71,6 +71,11 @@ export function createFakeUpstash() {
         e.expiresAt = Date.now() + Number(args[1]) * 1000;
         return 1;
       }
+      case "ttl": {
+        const e = getEntry(args[0]);
+        if (!e) return -2;
+        return e.expiresAt == null ? -1 : Math.max(0, Math.ceil((e.expiresAt - Date.now()) / 1000));
+      }
       case "hset": {
         const [k, ...rest] = args;
         const e = ensure(k, "hash", () => new Map());

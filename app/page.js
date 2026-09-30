@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PinEntry, HowToPlay, Legend, ModeChoice, DigitsChoice } from "./Board";
-import { savePlayer, post } from "@/lib/client";
+import { savePlayer, post, fetchState, awayTag } from "@/lib/client";
 
 export default function Home() {
   const router = useRouter();
@@ -28,8 +28,8 @@ export default function Home() {
     if (busy || !hostName.trim() || hostPin.length !== 4 || digits < 3) return;
     setBusy(true); setError({});
     try {
-      const { code, playerId } = await post("/api/create", { name: hostName, pin: hostPin, mode, digits });
-      savePlayer(code, playerId);
+      const { code, playerId, token } = await post("/api/create", { name: hostName, pin: hostPin, mode, digits });
+      savePlayer(code, { id: playerId, token });
       router.push(`/game/${code}`);
     } catch (e) { setError({ create: e.message }); setBusy(false); }
   }
@@ -39,8 +39,8 @@ export default function Home() {
     if (busy || code.length !== 5 || !joinName.trim() || joinPin.length !== 4) return;
     setBusy(true); setError({});
     try {
-      const { playerId } = await post("/api/join", { code, name: joinName, pin: joinPin });
-      savePlayer(code, playerId);
+      const { playerId, token } = await post("/api/join", { code, name: joinName, pin: joinPin });
+      savePlayer(code, { id: playerId, token });
       router.push(`/game/${code}`);
     } catch (e) { setError({ join: e.message }); setBusy(false); }
   }
@@ -52,10 +52,11 @@ export default function Home() {
     if (code.length !== 5) return;
     setRejoinLoading(true);
     try {
-      const res = await fetch(`/api/state?code=${code}`, { cache: "no-store" });
+      const res = await fetchState(code);
       if (res.ok) {
         const data = await res.json();
-        setRejoinPlayers(data.players.filter((p) => !p.removed));
+        // Everyone who can come back: players in the game, and people who left.
+        setRejoinPlayers(data.players.filter((p) => !p.removed || p.leaveReason === "left"));
       } else {
         setRejoinPlayers([]);
       }
@@ -68,8 +69,8 @@ export default function Home() {
     if (busy || code.length !== 5 || !rejoinName || rejoinPin.length !== 4) return;
     setBusy(true); setError({});
     try {
-      const { playerId } = await post("/api/rejoin", { code, name: rejoinName, pin: rejoinPin });
-      savePlayer(code, playerId);
+      const { playerId, token } = await post("/api/rejoin", { code, name: rejoinName, pin: rejoinPin });
+      savePlayer(code, { id: playerId, token });
       router.push(`/game/${code}`);
     } catch (e) { setError({ rejoin: e.message }); setBusy(false); }
   }
@@ -160,7 +161,7 @@ export default function Home() {
                   <select id="rn" value={rejoinName} onChange={(e) => setRejoinName(e.target.value)}>
                     <option value="">Choose your name…</option>
                     {rejoinPlayers.map((p) => (
-                      <option key={p.id} value={p.name}>{p.name}</option>
+                      <option key={p.id} value={p.name}>{p.name}{awayTag(p)}</option>
                     ))}
                   </select>
                   <PinEntry id="rp" label="Your PIN" value={rejoinPin} onChange={setRejoinPin} onEnter={rejoin} />

@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHAT_PRESETS, findChatPreset } from "@/lib/chatPresets";
-import { post } from "@/lib/client";
+import { post, copyText } from "@/lib/client";
 import { playChatSound, preloadChatSounds } from "@/lib/audio";
 
 const WIDE_QUERY = "(min-width: 720px)";
 const MAX_TOASTS = 3; // stacked at once on wide screens; more wait in line
 const TOAST_MS = 4000;
 const MAX_LENGTH = 200;
+const LONG_STATEMENT = 16; // characters; a longer statement gets a chip row of its own
+
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 function useWide() {
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_QUERY).matches);
@@ -29,7 +33,8 @@ function useWide() {
 // baseline (never toasted, never unread). After that, every new message from
 // someone else notifies (toast + sound + unread count) only if the chat isn't
 // visible right then. Own messages never notify.
-export function useChat({ state, code, playerId, sheetOpen, onOpenRequest }) {
+export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
+  const playerId = cred.id;
   const wide = useWide();
   // How many toasts are on screen at once (each starts its 4 seconds when it
   // moves into this window): a stack of 3 in the wide-screen corner; one at a
@@ -46,6 +51,7 @@ export function useChat({ state, code, playerId, sheetOpen, onOpenRequest }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [typing, setTyping] = useState(false); // a text box has focus
+  const [pickerId, setPickerId] = useState(null); // which quick-statements picker is open: "dock" | "corner" | "sheet"
 
   const known = useRef(null);
   const timers = useRef(new Map());
@@ -58,6 +64,9 @@ export function useChat({ state, code, playerId, sheetOpen, onOpenRequest }) {
   const visible = wide ? expanded && panelInView && !tabHidden : open;
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
+
+  // People who left (and can come back) are marked "(away)" in the chat.
+  const awayIds = useMemo(() => new Set(state.players.filter((p) => p.removed && p.leaveReason === "left").map((p) => p.id)), [state.players]);
 
   useEffect(() => {
     const update = () => setTabHidden(document.hidden);
@@ -79,6 +88,11 @@ export function useChat({ state, code, playerId, sheetOpen, onOpenRequest }) {
 
   // The phone sheet doesn't exist on wide screens.
   useEffect(() => { if (wide) setOpen(false); }, [wide]);
+
+  // Only one quick-statements picker at a time, and none survives a change of
+  // layout (phone bar <-> corner button), the scratch sheet opening or
+  // closing, the chat sheet opening, or the keyboard coming up.
+  useEffect(() => { setPickerId(null); }, [wide, sheetOpen, open, typing]);
 
   // Sound files are fetched ahead of time (after the first tap unlocks audio)
   // so a statement's own sound plays without a delay.
@@ -176,12 +190,16 @@ export function useChat({ state, code, playerId, sheetOpen, onOpenRequest }) {
     }
   }, [wide, clearToasts]);
 
+  const remember = useCallback((message) => {
+    if (known.current) known.current.add(message.id);
+    setLocalMsgs((l) => [...l.slice(-49), message]);
+  }, []);
+
   const send = useCallback(async (payload) => {
     setSending(true); setError("");
     try {
-      const { message } = await post("/api/chat", { code, playerId, ...payload });
-      if (known.current) known.current.add(message.id);
-      setLocalMsgs((l) => [...l.slice(-49), message]);
+      const { message } = await post("/api/chat", { code, ...payload }, cred);
+      remember(message);
       return true;
     } catch (e) {
       setError(e.message);
@@ -189,29 +207,223 @@ export function useChat({ state, code, playerId, sheetOpen, onOpenRequest }) {
     } finally {
       setSending(false);
     }
-  }, [code, playerId]);
+  }, [code, cred, remember]);
+
+  // A quick statement from a picker. Reports its own result — a failure (say,
+  // the rate limit) is shown inside the picker, not in the chat's text box.
+  const sendPreset = useCallback(async (presetId) => {
+    try {
+      const { message } = await post("/api/chat", { code, presetId }, cred);
+      remember(message);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }, [code, cred, remember]);
 
   return {
     wide, open, setOpen, expanded, setExpanded, panelRef, unread, toasts, openChat, dismissToast, typing, maxVisible,
-    messages, canSend, playerId, draft, setDraft, sending, error, setError, send,
+    messages, canSend, playerId, draft, setDraft, sending, error, setError, send, sendPreset, pickerId, setPickerId, awayIds,
   };
 }
 
-// The chat itself: messages, quick statements, and the text box. Used inside
-// the phone sheet and the wide-screen side panel.
+// ---- Quick statements (the 😀 button and its picker) -------------------------
+// One component for all three homes: the phone chat bar ("dock"), the
+// wide-screen corner ("corner") and the scratch sheet's header ("sheet"). The
+// picker opens right above the button (below it in the sheet header, which sits
+// at the very top of the screen), as a grid of big chips. Tapping a chip sends
+// that statement at once. Only one picker is ever open (see `pickerId`).
+export function QuickPicker({ chat, id, placement = "above" }) {
+  const { pickerId, setPickerId, sendPreset, canSend } = chat;
+  const open = pickerId === id;
+  const [busyId, setBusyId] = useState(null);
+  const [sentId, setSentId] = useState(null);
+  const [error, setError] = useState("");
+  const rootRef = useRef(null);
+  const btnRef = useRef(null);
+  const closeTimer = useRef(null);
+
+  const close = useCallback((refocus) => {
+    setPickerId(null);
+    if (refocus) btnRef.current?.focus();
+  }, [setPickerId]);
+
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+
+  // Closes with Escape or a tap outside. Escape is handled first (capture
+  // phase) so inside the scratch sheet it closes only the picker, not the sheet.
+  useEffect(() => {
+    if (!open) {
+      setBusyId(null); setSentId(null); setError("");
+      return;
+    }
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      close(true);
+    };
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) close(false);
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onDown, true);
+    };
+  }, [open, close]);
+
+  const choose = useCallback(async (preset) => {
+    if (busyId || sentId) return;
+    setBusyId(preset.id); setError("");
+    const res = await sendPreset(preset.id);
+    setBusyId(null);
+    if (!res.ok) { setError(res.error); return; }
+    setSentId(preset.id);
+    closeTimer.current = setTimeout(() => { setSentId(null); setPickerId(null); }, 850);
+  }, [busyId, sentId, sendPreset, setPickerId]);
+
+  if (!canSend) return null;
+  const single = CHAT_PRESETS.some((p) => Array.from(p.text).length > LONG_STATEMENT);
+
+  return (
+    <div className={`qs qs--${id} qs--${placement}`} ref={rootRef}>
+      <button
+        type="button"
+        ref={btnRef}
+        className="qs-btn"
+        aria-label={open ? "Close quick statements" : "Quick statements"}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => (open ? close(false) : setPickerId(id))}
+      >
+        <span aria-hidden="true">{open ? "✕" : "😀"}</span>
+      </button>
+      {open && (
+        <div className="qs-pop" role="group" aria-label="Quick statements">
+          <div className={`qs-grid${single ? " qs-grid--single" : ""}`}>
+            {CHAT_PRESETS.map((p) => {
+              const state = sentId === p.id ? "sent" : busyId === p.id ? "sending" : "idle";
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`secondary qs-chip qs-chip--${state}`}
+                  onClick={() => choose(p)}
+                  disabled={!!busyId || !!sentId}
+                  aria-label={state === "idle" ? p.text : state === "sending" ? `Sending: ${p.text}` : `Sent: ${p.text}`}
+                >
+                  {state === "sending" ? "Sending…" : state === "sent" ? "✓ Sent" : p.text}
+                </button>
+              );
+            })}
+          </div>
+          {error && <p className="error small qs-error" role="alert">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- The chat itself -------------------------------------------------------
+
+// One message. Long-pressing it (touch) or right-clicking it (mouse) copies its
+// text. Nothing here blocks scrolling or normal text selection: a press that
+// moves, a scroll, or an active selection cancels the copy, and no default
+// behavior is prevented on touch.
+function ChatMessage({ m, mine, label }) {
+  const [copied, setCopied] = useState(false);
+  const press = useRef(null);
+  const hide = useRef(null);
+  useEffect(() => () => { clearTimeout(press.current?.timer); clearTimeout(hide.current); }, []);
+
+  async function copy() {
+    if (!(await copyText(m.text))) return;
+    setCopied(true);
+    clearTimeout(hide.current);
+    hide.current = setTimeout(() => setCopied(false), 1300);
+  }
+  function cancel() {
+    clearTimeout(press.current?.timer);
+    press.current = null;
+  }
+  function onPointerDown(e) {
+    if (e.pointerType === "mouse") return;
+    cancel();
+    press.current = {
+      x: e.clientX, y: e.clientY,
+      timer: setTimeout(() => {
+        press.current = null;
+        if (window.getSelection?.().toString()) return; // they're selecting text — leave it alone
+        copy();
+      }, 550),
+    };
+  }
+  function onPointerMove(e) {
+    const p = press.current;
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) cancel();
+  }
+  function onContextMenu(e) {
+    const type = e.nativeEvent.pointerType;
+    if (type && type !== "mouse") return; // a touch long-press: native selection handles it
+    e.preventDefault();
+    copy();
+  }
+
+  return (
+    <li
+      className={`chat-msg${mine ? " chat-msg--mine" : ""}${m.presetId ? " chat-msg--preset" : ""}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={cancel}
+      onPointerCancel={cancel}
+      onPointerLeave={cancel}
+      onContextMenu={onContextMenu}
+    >
+      <span className="chat-name">{label}</span>
+      <span className="chat-text">{m.text}</span>
+      {copied && <span className="chat-copied" role="status">Copied</span>}
+    </li>
+  );
+}
+
+// The chat itself: messages and the text box. Used inside the phone sheet and
+// the wide-screen side panel. (Quick statements live in the 😀 picker.)
 export function ChatPanel({ chat }) {
-  const { messages, canSend, playerId, draft, setDraft, sending, error, setError, send } = chat;
+  const { messages, canSend, playerId, draft, setDraft, sending, error, setError, send, awayIds } = chat;
   const listRef = useRef(null);
   const pinned = useRef(true);
+  const lastSeen = useRef(null);
+  const [unseen, setUnseen] = useState(0);
 
+  // Follow new messages only while the reader is at the bottom. Scrolled up
+  // reading older ones? Leave them where they are and offer a jump instead.
+  const lastId = messages.length ? messages[messages.length - 1].id : null;
   useEffect(() => {
     const list = listRef.current;
-    if (list && pinned.current) list.scrollTop = list.scrollHeight;
-  }, [messages.length]);
+    if (!list) return;
+    const prevIdx = lastSeen.current ? messages.findIndex((m) => m.id === lastSeen.current) : -1;
+    const added = lastSeen.current === null ? 0 : prevIdx === -1 ? messages.length : messages.length - 1 - prevIdx;
+    lastSeen.current = lastId;
+    if (pinned.current) list.scrollTop = list.scrollHeight;
+    else if (added > 0) setUnseen((n) => n + added);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastId, messages.length]);
 
   function handleScroll() {
     const list = listRef.current;
-    if (list) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    if (!list) return;
+    pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    if (pinned.current) setUnseen(0);
+  }
+
+  function jumpToNewest() {
+    const list = listRef.current;
+    if (!list) return;
+    pinned.current = true;
+    setUnseen(0);
+    list.scrollTo({ top: list.scrollHeight, behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }
 
   async function submit(e) {
@@ -222,39 +434,27 @@ export function ChatPanel({ chat }) {
     if (await send({ text })) setDraft("");
   }
 
-  async function sendPreset(id) {
-    if (sending) return;
-    pinned.current = true;
-    await send({ presetId: id });
-  }
-
   return (
     <div className="chat-panel">
-      <ol className="chat-list" ref={listRef} onScroll={handleScroll} role="log" aria-label="Chat messages">
-        {messages.length === 0 ? (
-          <li className="chat-empty muted small">No messages yet. Say hi!</li>
-        ) : (
-          messages.map((m) => {
-            const mine = m.playerId === playerId;
-            return (
-              <li key={m.id} className={`chat-msg${mine ? " chat-msg--mine" : ""}${m.presetId ? " chat-msg--preset" : ""}`}>
-                <span className="chat-name">{mine ? "You" : m.name}</span>
-                <span className="chat-text">{m.text}</span>
-              </li>
-            );
-          })
+      <div className="chat-list-wrap">
+        <ol className="chat-list" ref={listRef} onScroll={handleScroll} role="log" aria-label="Chat messages">
+          {messages.length === 0 ? (
+            <li className="chat-empty muted small">No messages yet. Say hi!</li>
+          ) : (
+            messages.map((m) => {
+              const mine = m.playerId === playerId;
+              const label = `${mine ? "You" : m.name}${awayIds.has(m.playerId) ? " (away)" : ""}`;
+              return <ChatMessage key={m.id} m={m} mine={mine} label={label} />;
+            })
+          )}
+        </ol>
+        {unseen > 0 && (
+          <button type="button" className="chat-newpill" onClick={jumpToNewest}>New messages ↓</button>
         )}
-      </ol>
+      </div>
 
       {canSend ? (
         <>
-          <div className="chat-chips" role="group" aria-label="Quick statements">
-            {CHAT_PRESETS.map((p) => (
-              <button key={p.id} type="button" className="secondary chat-chip" onClick={() => sendPreset(p.id)} disabled={sending}>
-                {p.text}
-              </button>
-            ))}
-          </div>
           <form className="chat-form" onSubmit={submit}>
             <input
               className="chat-input"
@@ -271,7 +471,7 @@ export function ChatPanel({ chat }) {
           {error && <p className="error small chat-error" role="alert">{error}</p>}
         </>
       ) : (
-        <p className="small muted chat-readonly">You can still read the chat, but you can't send messages anymore.</p>
+        <p className="small muted chat-readonly">You can still read the chat, but you can't send messages right now.</p>
       )}
     </div>
   );
@@ -294,23 +494,55 @@ export function ChatSection({ chat }) {
   );
 }
 
-// Phone: a slim bar along the bottom edge that opens the chat. It reserves its
-// own lane — the page has matching padding underneath — so unlike a floating
-// button or a pop-up it can never sit on top of a control: whatever scrolls
-// under it can always be scrolled clear, and the last controls on the page
-// stay reachable. It shows the latest message and the unread count. It is also
-// where incoming messages appear on a phone: for 4 seconds the bar itself
-// turns dark and shows the sender and text (tap it to open the chat, ✕ to
+// Phone: a slim bar along the bottom edge that opens the chat, with the 😀
+// quick-statements button split off on its right. It reserves its own lane —
+// the page has matching padding underneath — so unlike a floating button or a
+// pop-up it can never sit on top of a control: whatever scrolls under it can
+// always be scrolled clear, and the last controls on the page stay reachable.
+// It shows the latest message and the unread count. It is also where incoming
+// messages appear on a phone: for 4 seconds the bar itself turns dark (with a
+// short pulse) and shows the sender and text (tap it to open the chat, ✕ to
 // dismiss), one message at a time, with the same height — so nothing moves.
 // It steps aside while a text box has focus (on Android the keyboard resizes
-// the page and would otherwise push it up over the guess input).
+// the page and would otherwise push it up over the guess input). Scrolled down
+// the page, it shrinks to a slimmer handle (badge + 😀 stay); it comes back
+// scrolling up, or when the scrolling stops near the bottom. The lane it
+// reserves never changes size, so nothing on the page jumps.
 export function ChatDock({ chat, hidden }) {
-  const { unread, open, typing, openChat, messages, toasts, dismissToast } = chat;
+  const { unread, open, typing, openChat, messages, toasts, dismissToast, pickerId } = chat;
   const alert = toasts[0];
   const last = messages[messages.length - 1];
   const preview = last ? `${last.playerId === chat.playerId ? "You" : last.name}: ${last.text}` : "Say something to the table";
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let raf = 0;
+    let idle = 0;
+    const nearBottom = () => document.documentElement.scrollHeight - window.innerHeight - window.scrollY < 96;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = window.scrollY;
+        const dy = y - lastY;
+        if (Math.abs(dy) >= 6) {
+          if (dy < 0 || nearBottom()) setCollapsed(false);
+          else if (y > 160) setCollapsed(true);
+          lastY = y;
+        }
+        clearTimeout(idle);
+        idle = setTimeout(() => { if (nearBottom() || window.scrollY < 160) setCollapsed(false); }, 700);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); clearTimeout(idle); };
+  }, []);
+
+  const slim = collapsed && !alert && pickerId !== "dock";
   return (
-    <div className={`chat-dock${alert ? " chat-dock--alert" : ""}${typing || open || hidden ? " chat-dock--hidden" : ""}`}>
+    <div className={`chat-dock${alert ? " chat-dock--alert" : ""}${slim ? " chat-dock--slim" : ""}${typing || open || hidden ? " chat-dock--hidden" : ""}`}>
+      {alert && <span key={alert.id} className="chat-dock-flash" aria-hidden="true" />}
       <div className="chat-dock-row">
         <button
           type="button"
@@ -337,16 +569,25 @@ export function ChatDock({ chat, hidden }) {
         {alert && (
           <button type="button" className="chat-dock-dismiss" onClick={() => dismissToast(alert.id)} aria-label={`Dismiss message from ${alert.name}`}>✕</button>
         )}
+        <QuickPicker chat={chat} id="dock" placement="above" />
       </div>
       <span className="sr-only" role="status" aria-live="polite">{alert ? `${alert.name}: ${alert.text}` : ""}</span>
     </div>
   );
 }
 
+// Tablet and laptop: the 😀 button in the bottom-right corner. The notification
+// stack sits above it (see .chat-toasts).
+export function ChatCorner({ chat }) {
+  if (!chat.canSend) return null;
+  return <QuickPicker chat={chat} id="corner" placement="above" />;
+}
+
 // Phone: the chat as a full-screen sheet over the game. The page behind is
 // pinned in place, and the sheet follows the *visual* viewport, so on iPhone
-// the text box stays visible above the on-screen keyboard.
-export function ChatSheet({ chat }) {
+// the text box stays visible above the on-screen keyboard. `topToast` is the
+// "Your turn!" notification, shown here so it sits above the open chat.
+export function ChatSheet({ chat, topToast }) {
   const { open, setOpen } = chat;
   const dialogRef = useRef(null);
 
@@ -418,35 +659,118 @@ export function ChatSheet({ chat }) {
       <div className="chat-sheet-head">
         <h2>Chat</h2>
         <button type="button" className="secondary chat-sheet-close" onClick={() => setOpen(false)} aria-label="Close chat">✕</button>
+        {open && topToast}
       </div>
       {open && <ChatPanel chat={chat} />}
     </dialog>
   );
 }
 
+// A wide-screen toast: tap to open the chat, ✕ to close it, or swipe / drag it
+// sideways to send it away. A drag past ~70px dismisses; a shorter one snaps
+// back. (touch-action: pan-y lets a horizontal swipe reach us while vertical
+// scrolling still works.)
+function ToastItem({ t, chat }) {
+  const ref = useRef(null);
+  const drag = useRef(null);
+  const justDragged = useRef(false);
+  const slideTimer = useRef(null);
+  useEffect(() => () => clearTimeout(slideTimer.current), []);
+
+  function onPointerDown(e) {
+    if (e.button && e.button !== 0) return;
+    if (e.target.closest(".chat-toast-dismiss")) return;
+    drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: false, dx: 0 };
+  }
+  function onPointerMove(e) {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved) {
+      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+      d.moved = true;
+      ref.current.setPointerCapture?.(e.pointerId);
+      ref.current.style.transition = "none";
+    }
+    d.dx = dx;
+    ref.current.style.transform = `translateX(${dx}px)`;
+    ref.current.style.opacity = String(Math.max(0.25, 1 - Math.abs(dx) / 240));
+  }
+  function onPointerUp(e) {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || !d.moved) return;
+    justDragged.current = true;
+    setTimeout(() => { justDragged.current = false; }, 0);
+    ref.current.releasePointerCapture?.(e.pointerId);
+    const el = ref.current;
+    if (Math.abs(d.dx) > 70) {
+      const instant = prefersReducedMotion();
+      el.style.transition = instant ? "none" : "transform 0.16s ease-out, opacity 0.16s ease-out";
+      el.style.transform = `translateX(${d.dx > 0 ? 420 : -420}px)`;
+      el.style.opacity = "0";
+      slideTimer.current = setTimeout(() => chat.dismissToast(t.id), instant ? 0 : 160);
+    } else {
+      el.style.transition = prefersReducedMotion() ? "none" : "transform 0.15s ease-out, opacity 0.15s ease-out";
+      el.style.transform = "";
+      el.style.opacity = "";
+    }
+  }
+  function onPointerCancel() {
+    drag.current = null;
+    if (ref.current) { ref.current.style.transform = ""; ref.current.style.opacity = ""; }
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={`chat-toast${t.presetId ? " chat-toast--preset" : ""}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onClickCapture={(e) => { if (justDragged.current) { e.stopPropagation(); e.preventDefault(); } }}
+    >
+      <button type="button" className="chat-toast-open" onClick={chat.openChat}>
+        <span className="chat-toast-name">{t.name}</span>
+        <span className="chat-toast-text">{t.text}</span>
+      </button>
+      <button type="button" className="chat-toast-dismiss" onClick={() => chat.dismissToast(t.id)} aria-label={`Dismiss message from ${t.name}`}>✕</button>
+    </div>
+  );
+}
+
 // Incoming-message toasts for wide screens (bottom-right corner, stacking
-// upward, newest at the bottom) and for the scratch sheet (`inSheet`). Tapping
-// one opens the chat; its ✕ closes just that one. On phones the message shows
-// in the chat bar instead (see ChatDock). Inside the scratch sheet a single
-// toast takes over the header's title text — the sheet's ✕ button and
-// everything below stay uncovered. It's rendered inside the sheet's <dialog>
-// while that's open (a modal dialog sits above everything else on the page and
-// makes the rest inert, so a toast outside it couldn't be seen or tapped).
+// upward above the 😀 button, newest at the bottom) and for the scratch sheet
+// (`inSheet`). Tapping one opens the chat; its ✕ (or a swipe) closes just that
+// one. On phones the message shows in the chat bar instead (see ChatDock).
+// Inside the scratch sheet a single toast takes over the header's title text —
+// the sheet's buttons and everything below stay uncovered. It's rendered inside
+// the sheet's <dialog> while that's open (a modal dialog sits above everything
+// else on the page and makes the rest inert, so a toast outside it couldn't be
+// seen or tapped).
 export function ChatToasts({ chat, inSheet = false }) {
   const shown = chat.toasts.slice(0, chat.maxVisible);
   const waiting = chat.toasts.length - shown.length;
   return (
     <div className={`chat-toasts${inSheet ? " chat-toasts--sheet" : ""}`} role="status" aria-live="polite">
-      {shown.map((t) => (
-        <div key={t.id} className={`chat-toast${t.presetId ? " chat-toast--preset" : ""}`}>
-          <button type="button" className="chat-toast-open" onClick={chat.openChat}>
-            <span className="chat-toast-name">{t.name}</span>
-            <span className="chat-toast-text">{t.text}</span>
-          </button>
-          <button type="button" className="chat-toast-dismiss" onClick={() => chat.dismissToast(t.id)} aria-label={`Dismiss message from ${t.name}`}>✕</button>
-        </div>
-      ))}
+      {shown.map((t) => <ToastItem key={t.id} t={t} chat={chat} />)}
       {waiting > 0 && <span className="chat-toast-more">+{waiting} more</span>}
     </div>
   );
 }
+
+// "▶ Your turn!" — a small accent-colored notice for the moment the turn
+// passes to this player. Tap to dismiss. Where it sits is decided by the page
+// (`place`): away from the guess controls, and inside whichever dialog is open.
+export function TurnToast({ onDismiss, place }) {
+  return (
+    <div className={`turn-toast turn-toast--${place}`} role="status" aria-live="assertive">
+      <button type="button" className="turn-toast-btn" onClick={onDismiss} aria-label="Your turn! Tap to dismiss">
+        <span aria-hidden="true">▶</span> Your turn!
+      </button>
+    </div>
+  );
+}
+

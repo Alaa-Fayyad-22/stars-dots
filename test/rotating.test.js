@@ -73,18 +73,31 @@ export default async function run({ game, fake, T }) {
     T.assert(scoreboard.every((e) => e.wins === 0), "nobody should score from a no-winner round");
   });
 
-  await T.test("winner becomes host of the next round", async () => {
-    const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 3 });
+  await T.test("the winner scores but does NOT become host — hosting moves to the next player in join order", async () => {
+    const { code, players } = await createGameWithPlayers(game, { mode: "rotating", digits: 4, count: 4 });
     const room1 = rawRoom(fake, code);
     const secret = randomValidNumber(4);
     await game.pickSecret(code, room1.hostId, secret);
+    // Let the first two players guess wrong so the winner is the THIRD player
+    // in the turn order — who is not the next host in join order.
+    const wrong = [randomValidNumber(4, new Set([secret])), randomValidNumber(4, new Set([secret]))];
+    if (wrong[0] === wrong[1]) wrong[1] = randomValidNumber(4, new Set([secret, wrong[0]]));
+    for (const g of wrong) {
+      const s = await game.getState(code, players[0].id);
+      const out = await game.submitGuess(code, s.currentPlayerId, g);
+      T.assert(!out.error, `decoy: ${out.error}`);
+    }
     const state = await game.getState(code, players[0].id);
     const winnerId = state.currentPlayerId;
+    T.eq(winnerId, players[3].id, "sanity: the fourth player (last in join order) is up third");
     const r = await game.submitGuess(code, winnerId, secret);
     T.assert(r.won, "should win with the actual secret");
     const room2 = rawRoom(fake, code);
-    T.eq(room2.hostId, winnerId, "the winner should become the next host");
+    T.eq(room2.hostId, players[1].id, "hosting goes to the next player in join order, not the winner");
+    T.assert(room2.hostId !== winnerId, "the winner must not become host just by winning");
     T.eq(room2.roundState, "pending", "the next round should be pending");
+    const after = await game.getState(code, winnerId);
+    T.eq(after.scoreboard.find((e) => e.id === winnerId).wins, 1, "the winner still gets the win on the scoreboard");
   });
 
   await T.test("the host can't remove themself — only leaveGame() can transfer hosting", async () => {

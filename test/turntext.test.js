@@ -84,7 +84,8 @@ export default async function run({ game, fake, T }) {
           T.eq(status.text, `${curName}'s turn`);
         }
       }
-      const decoy = randomValidNumber(4, new Set([room.secret]));
+      const seen = new Set([room.secret, ...viewerState.players.flatMap((p) => p.history.map((h) => h.guess))]);
+      const decoy = randomValidNumber(4, seen);
       T.assert(!(await game.submitGuess(code, curId, decoy)).error, "guess should pass");
     }
   });
