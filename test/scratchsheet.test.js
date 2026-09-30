@@ -28,7 +28,7 @@ export default async function run({ game, fake, T }) {
     T.eq(draftGuessReason({ ...base, draft: ["1", "2", "3", "4"], roundState: "ended" }), "Round isn't active");
     T.eq(draftGuessReason({ ...base, draft: ["1", "2", "3", "4"], isHostThisRound: true }), "The host doesn't guess this round");
     T.eq(draftGuessReason({ ...base, draft: ["1", "2", "3", "4"], solved: true }), "You already found it");
-    T.eq(draftGuessReason({ ...base, draft: ["1", "2", "3", "4"], currentPlayerId: "someone-else" }), "Not your turn");
+    T.eq(draftGuessReason({ ...base, draft: ["1", "2", "3", "4"], currentPlayerId: "someone-else" }), "Waiting for the next player");
     T.eq(draftGuessReason({ ...base, draft: ["1", "2", "3", ""] }), "Fill in all the digits");
     T.eq(draftGuessReason({ ...base, draft: ["0", "1", "2", "3"] }), "Can't start with 0");
     T.eq(draftGuessReason({ ...base, draft: ["1", "1", "2", "3"] }), "Repeated digits");

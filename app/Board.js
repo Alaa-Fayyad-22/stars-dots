@@ -603,7 +603,7 @@ export function DraftBoxes({ draft, digits = 4, digitNotes, onChangeDraft, onCle
 // nothing here computes or reveals anything about the secret.
 export function ScratchSheet({
   open, onClose, players, playerId, notes, digits = 4, onToggleDigit, onChangeDraft, onClearDraft, onUseAsGuess,
-  onSubmitGuess, submitDisabled, submitBusy, submitMessage,
+  onSubmitGuess, submitDisabled, submitBusy, submitMessage, turnStatus, overlay,
 }) {
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
@@ -694,8 +694,14 @@ export function ScratchSheet({
   return (
     <dialog ref={dialogRef} className="sheet">
       <div className="sheet-head">
-        <h2>Scratch sheet</h2>
+        <div className="sheet-head-text">
+          <h2>Scratch sheet</h2>
+          {turnStatus && (
+            <p className={`sheet-status${turnStatus.mine ? " sheet-status--mine" : ""}`} role="status">{turnStatus.text}</p>
+          )}
+        </div>
         <button type="button" ref={closeRef} className="secondary sheet-close" onClick={onClose} aria-label="Close scratch sheet">✕</button>
+        {overlay}
       </div>
 
       <CompactNotepad notes={notes} onToggleDigit={onToggleDigit} />

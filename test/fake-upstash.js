@@ -67,6 +67,7 @@ export function createFakeUpstash() {
       case "expire": {
         const e = getEntry(args[0]);
         if (!e) return 0;
+        if (String(args[2] || "").toLowerCase() === "nx" && e.expiresAt != null) return 0;
         e.expiresAt = Date.now() + Number(args[1]) * 1000;
         return 1;
       }
@@ -100,6 +101,25 @@ export function createFakeUpstash() {
         const out = [];
         for (const [f, v] of e.value) out.push(f, v);
         return out;
+      }
+      case "incr": {
+        const e = getEntry(args[0]);
+        const next = (e ? Number(e.value) : 0) + 1;
+        store.set(args[0], { type: "string", value: String(next), expiresAt: e ? e.expiresAt : null });
+        return next;
+      }
+      case "ltrim": {
+        const [k, start, stop] = args;
+        const e = getEntry(k);
+        if (!e || e.type !== "list") return "OK";
+        const len = e.value.length;
+        let s = Number(start), t = Number(stop);
+        if (s < 0) s = Math.max(len + s, 0);
+        if (t < 0) t = len + t;
+        t = Math.min(t, len - 1);
+        e.value = s > t ? [] : e.value.slice(s, t + 1);
+        if (!e.value.length) store.delete(k);
+        return "OK";
       }
       case "rpush": {
         const [k, ...elements] = args;

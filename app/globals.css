@@ -554,3 +554,152 @@ button:not(:disabled):active { transform: scale(0.97); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* Scratch sheet: whose turn it is, under the title */
+.sheet-head-text { min-width: 0; }
+.sheet-status { margin: 0.1rem 0 0; font-size: 0.8rem; font-weight: 600; line-height: 1.25; color: var(--sheet-muted); }
+.sheet-status--mine { display: inline-block; padding: 0.05rem 0.55rem; border-radius: 999px; background: var(--star); color: #201404; font-weight: 800; }
+
+/* Chat: message list, quick statements, text box */
+.chat-section-head { display: flex; align-items: center; gap: 0.6rem; }
+.chat-section-head h2 { margin: 0; margin-right: auto; }
+.chat-toggle { width: auto; margin: 0; padding: 0.35rem 0.8rem; min-height: 2.2rem; font-size: 0.85rem; }
+.chat-panel { display: flex; flex-direction: column; gap: 0.7rem; min-height: 0; margin-top: 0.75rem; }
+.chat-list {
+  list-style: none; margin: 0; padding: 0.6rem;
+  height: 16rem; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 0.45rem;
+  background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+}
+.chat-empty { margin: auto; text-align: center; }
+.chat-msg {
+  align-self: flex-start; max-width: 88%; min-width: 0;
+  padding: 0.4rem 0.7rem; border-radius: 12px 12px 12px 4px;
+  background: var(--tile); border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.chat-msg--mine {
+  align-self: flex-end; border-radius: 12px 12px 4px 12px;
+  background: color-mix(in srgb, var(--star) 24%, var(--tile));
+  border-color: color-mix(in srgb, var(--star) 60%, var(--line));
+}
+.chat-msg--preset { border-left: 4px solid var(--dot); font-weight: 700; }
+.chat-msg--preset.chat-msg--mine { border-left-color: var(--star); }
+.chat-name { display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted); line-height: 1.3; }
+.chat-text { display: block; }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chat-chip {
+  width: auto; margin: 0; min-height: 2.5rem; padding: 0.3rem 0.85rem;
+  font-size: 0.9rem; border-radius: 999px; border-color: var(--dot);
+}
+.chat-form { display: flex; gap: 0.5rem; }
+.chat-input { flex: 1 1 auto; min-width: 0; }
+.chat-send { flex: 0 0 auto; width: auto; margin: 0; padding: 0.5rem 1.1rem; }
+.chat-error, .chat-readonly { margin: 0; }
+
+/* Unread badge */
+.chat-badge {
+  min-width: 1.4rem; height: 1.4rem; padding: 0 0.35rem; border-radius: 999px;
+  display: inline-grid; place-items: center;
+  background: var(--danger); color: #fff; font-size: 0.75rem; font-weight: 800; line-height: 1;
+}
+
+/* Phone: floating button + full-screen sheet */
+.chat-clearance { height: calc(3.25rem + env(safe-area-inset-bottom, 0px)); }
+.chat-dock {
+  position: fixed; z-index: 40; left: 0; right: 0; bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--paper); border-top: 2px solid var(--line);
+}
+.chat-dock--hidden { display: none; }
+.chat-dock-row { display: flex; align-items: stretch; max-width: 46rem; margin: 0 auto; }
+.chat-dock-btn {
+  display: flex; align-items: center; gap: 0.6rem;
+  flex: 1 1 auto; min-width: 0; width: auto; min-height: 3.25rem; margin: 0;
+  padding: 0 calc(1.1rem + env(safe-area-inset-right, 0px)) 0 calc(1.1rem + env(safe-area-inset-left, 0px));
+  border: 0; border-radius: 0; background: transparent; color: var(--ink);
+  text-align: left; font-weight: 400;
+}
+.chat-dock-btn svg { flex: 0 0 auto; }
+.chat-dock-label { flex: 0 0 auto; font-weight: 800; }
+.chat-dock-preview { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.9rem; }
+.chat-dock-btn .chat-badge { flex: 0 0 auto; }
+.chat-dock-name { flex: 0 0 auto; max-width: 7.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+.chat-dock-preview--alert { color: inherit; font-size: 1rem; font-weight: 600; }
+.chat-dock-dismiss {
+  flex: 0 0 auto; width: 3.25rem; min-height: 3.25rem; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; color: inherit; opacity: 0.8; font-size: 1rem;
+}
+/* An incoming message: the bar itself turns dark for a few seconds (same height, so nothing moves). */
+.chat-dock--alert { background: var(--ink); color: var(--paper); border-top-color: var(--ink); }
+.chat-dock--alert .chat-dock-name { color: var(--star); }
+.chat-dock--alert .chat-dock-btn { color: var(--paper); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.chat-sheet {
+  padding: 0; margin: 0; border: none; overflow: hidden;
+  width: 100vw; max-width: 100vw; max-height: none;
+  background: var(--paper); color: var(--ink);
+}
+.chat-sheet[open] {
+  display: flex; flex-direction: column;
+  position: fixed; inset: auto; left: 0; top: var(--vv-top, 0px);
+  height: 100vh; height: var(--vv-h, 100dvh);
+}
+.chat-sheet::backdrop { background: rgba(0, 0, 0, 0.5); }
+.chat-sheet-head {
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  padding: calc(0.6rem + env(safe-area-inset-top, 0px)) 1rem 0.6rem;
+  border-bottom: 2px solid var(--line);
+}
+.chat-sheet--kb .chat-sheet-head { padding-top: 0.6rem; }
+.chat-sheet-head h2 { margin: 0; }
+.chat-sheet-close { width: 2.6rem; height: 2.6rem; min-height: 0; margin: 0; padding: 0; border-radius: 999px; }
+.chat-sheet .chat-panel {
+  flex: 1 1 auto; margin: 0; padding: 0.7rem 1rem calc(0.8rem + env(safe-area-inset-bottom, 0px));
+}
+.chat-sheet--kb .chat-panel { padding-bottom: 0.6rem; }
+.chat-sheet .chat-list { flex: 1 1 auto; height: auto; min-height: 0; }
+
+/* Toasts for incoming messages: wide screens = bottom-right corner, stacking upward (phones use the chat bar) */
+.chat-toasts {
+  position: fixed; z-index: 60;
+  right: calc(1.2rem + env(safe-area-inset-right, 0px));
+  bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
+  width: min(22rem, 40vw);
+  display: flex; flex-direction: column; gap: 0.4rem;
+  pointer-events: none;
+}
+.chat-toast {
+  pointer-events: auto; display: flex; align-items: stretch; min-height: 2.75rem;
+  border: 2px solid var(--ink); border-radius: 12px; overflow: hidden;
+  background: var(--ink); color: var(--paper);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.chat-toast--preset { border-color: var(--dot); }
+.chat-toast-open {
+  flex: 1 1 auto; min-width: 0; width: auto; min-height: 0; margin: 0;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.4rem 0.2rem 0.4rem 0.8rem;
+  border: 0; border-radius: 0; background: transparent; color: inherit;
+  text-align: left; font-weight: 400;
+}
+.chat-toast-name { flex: 0 0 auto; max-width: 7.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; font-weight: 800; color: var(--star); }
+.chat-toast-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.chat-toast-dismiss {
+  flex: 0 0 auto; width: 2.75rem; min-height: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; color: var(--paper); opacity: 0.75; font-size: 0.95rem;
+}
+.chat-toast-dismiss:hover { opacity: 1; }
+.chat-toast-more { align-self: flex-end; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--panel); color: var(--muted); border: 1px solid var(--line); pointer-events: auto; }
+/* Inside the scratch sheet: one toast over the header's title text, leaving the
+   sheet's ✕ button and everything below it uncovered. */
+.sheet-head { position: relative; }
+.chat-toasts--sheet { position: absolute; top: calc(0.4rem + env(safe-area-inset-top, 0px)); left: 0.5rem; right: 3.4rem; bottom: auto; width: auto; }
+@media (min-width: 720px) {
+  .chat-toasts--sheet { top: 0.4rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat-toast { animation: toast-in 0.25s ease-out; }
+  @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+}

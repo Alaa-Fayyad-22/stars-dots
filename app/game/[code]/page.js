@@ -7,42 +7,14 @@ import {
   Legend, DigitEntry, PinEntry, RoundBanner, GuessFeed, PlayerNotes, DraftBoxes,
   ScratchSheet, Scoreboard, RoundHistory, DuplicateWarning,
 } from "../../Board";
-import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason, canPlayerGuess } from "@/lib/client";
+import { savePlayer, loadPlayer, post, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason, canPlayerGuess, guessButtonLabel, sheetStatus } from "@/lib/client";
+import { unlockAudio, playBeep } from "@/lib/audio";
+import { useChat, ChatSection, ChatSheet, ChatDock, ChatToasts } from "../../Chat";
 
 
-const POLL_MS = 2000;
+const POLL_MS = 3000;
 
 const MODE_LABEL = { rotating: "Rotating host", computer: "Computer host" };
-// A short beep for "your turn". Phones only allow sound after the player
-// has tapped the page at least once, so the sound is unlocked on the
-// first tap (see unlockAudio below).
-let audioCtx = null;
-
-function unlockAudio() {
-  try {
-    if (!audioCtx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) audioCtx = new AC();
-    }
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  } catch {}
-}
-
-function playBeep() {
-  try {
-    if (!audioCtx || audioCtx.state !== "running") return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.3);
-  } catch {}
-}
-
 export default function Game() {
   const code = String(useParams().code || "").toUpperCase();
   const [playerId, setPlayerId] = useState(null);
@@ -354,6 +326,8 @@ useEffect(() => {
   return () => { document.title = originalTitle.current; };
 }, [canGuess]);
 
+  const chat = useChat({ state, code, playerId, sheetOpen, onOpenRequest: () => setSheetOpen(false) });
+
   const { notes, toggleDigit, setDraft, clearDraft, clear } = usePlayerNotes(code, state.round, digits);
   const dup = guess.length === digits ? findDuplicateGuess(state.players, guess, playerId) : null;
 
@@ -478,6 +452,7 @@ useEffect(() => {
             )}
           </div>
           <div className="col-side">
+            {chat.wide && <ChatSection chat={chat} />}
             <section>
               <h2>Everyone's guesses</h2>
               <GuessFeed players={state.players} playerId={playerId} />
@@ -485,6 +460,7 @@ useEffect(() => {
             
           </div>
         </div>
+        <ChatLayer chat={chat} sheetOpen={false} />
       </>
     );
   }
@@ -519,7 +495,7 @@ useEffect(() => {
                 />
                 <DuplicateWarning dup={dup} />
                 <button onClick={submitGuess} disabled={guessBusy || guess.length !== digits || !canGuess || !!dup}>
-                  {canGuess ? "Check guess" : "Not your turn"}
+                  {guessButtonLabel({ canGuess, players: state.players, currentPlayerId: state.currentPlayerId })}
                 </button>
                 {guessError && <p className="error" role="alert">{guessError}</p>}
                 <Legend />
@@ -621,6 +597,7 @@ useEffect(() => {
         </div>
 
         <div className="col-side">
+          {chat.wide && <ChatSection chat={chat} />}
           <section>
             <h2>Scoreboard</h2>
             <Scoreboard scoreboard={state.scoreboard} playerId={playerId} />
@@ -655,8 +632,35 @@ useEffect(() => {
           submitDisabled={!draftCanSubmit}
           submitBusy={draftGuessBusy}
           submitMessage={draftSubmitMessage}
+          turnStatus={sheetStatus({
+            roundState: state.roundState,
+            isHostThisRound: iAmHostThisRound,
+            solved: state.me.solved,
+            currentPlayerId: state.currentPlayerId,
+            playerId,
+            players: state.players,
+            hostName: state.hostName,
+          })}
+          overlay={sheetOpen ? <ChatToasts chat={chat} inSheet /> : null}
         />
       )}
+      <ChatLayer chat={chat} sheetOpen={sheetOpen} />
+    </>
+  );
+}
+
+// The chat's fixed-position pieces. On phones: the chat bar along the bottom
+// (with a spacer of the same height so the last things on the page stay
+// reachable) and the chat sheet.
+// Toasts sit at the page root — except while the scratch sheet is open, when
+// they're rendered inside it (see ScratchSheet's `overlay`).
+function ChatLayer({ chat, sheetOpen }) {
+  return (
+    <>
+      {!chat.wide && <div className="chat-clearance" aria-hidden="true" />}
+      {!chat.wide && <ChatDock chat={chat} hidden={sheetOpen} />}
+      {!chat.wide && <ChatSheet chat={chat} />}
+      {chat.wide && !sheetOpen && <ChatToasts chat={chat} />}
     </>
   );
 }

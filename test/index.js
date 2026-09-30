@@ -30,6 +30,8 @@ const suites = [
   "./secret.test.js",
   "./alert.test.js",
   "./playthrough.test.js",
+  "./chat.test.js",
+  "./turntext.test.js",
 ];
 
 for (const path of suites) {
