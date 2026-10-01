@@ -18,6 +18,14 @@ export function Pegs({ stars, dots, total }) {
   );
 }
 
+// A person's color: a small vertical bar next to their name (never a circle or a
+// star, which are the dot and star pegs). The name is always shown too, so
+// color is never the only thing telling people apart.
+export function Swatch({ color }) {
+  if (!Number.isInteger(color)) return null;
+  return <span className="swatch" style={{ "--pc": `var(--pc${color})` }} aria-hidden="true" />;
+}
+
 export function GuessRow({ guess, stars, dots, num, big, fresh, digitNotes }) {
   return (
     <div className={`row${big ? " big" : ""}${fresh ? " fresh" : ""}`}>
@@ -165,6 +173,15 @@ export function ModeChoice({ value, onChange }) {
       >
         <div className="mode-card-title">Computer host</div>
         <div className="mode-card-desc small muted">The game picks the number. Everyone plays every round — no one sits out.</div>
+      </button>
+      <button
+        type="button"
+        className={`mode-card${value === "duel" ? " mode-card--selected" : ""}`}
+        aria-pressed={value === "duel"}
+        onClick={() => onChange("duel")}
+      >
+        <div className="mode-card-title">Duel</div>
+        <div className="mode-card-desc small muted">2 players. Each picks a secret number and cracks the other's.</div>
       </button>
     </div>
   );
@@ -320,7 +337,7 @@ export function RoundBanner({ state, playerId, onNextRoundClick, nextRoundBusy }
 
 // The scoreboard: wins and average tries per player, across every round in
 // this game. Visible to everyone, most useful between rounds.
-export function Scoreboard({ scoreboard, playerId }) {
+export function Scoreboard({ scoreboard, playerId, colors }) {
   if (!scoreboard || scoreboard.length === 0) return null;
   const leaderRank = scoreboard.find((e) => e.rank != null)?.rank ?? null;
   return (
@@ -345,7 +362,7 @@ export function Scoreboard({ scoreboard, playerId }) {
             >
               <td className="scoreboard-rank">{e.rank ?? "–"}</td>
               <td className="scoreboard-name">
-                {e.name}{awayTag(e)}{e.id === playerId ? " (you)" : ""}
+                <Swatch color={e.color ?? colors?.[e.id]} />{e.name}{awayTag(e)}{e.id === playerId ? " (you)" : ""}
               </td>
               <td className="scoreboard-num">{e.wins}</td>
               <td className="scoreboard-num">{e.avgTries != null ? e.avgTries.toFixed(1) : "–"}</td>
@@ -358,27 +375,59 @@ export function Scoreboard({ scoreboard, playerId }) {
 }
 
 // One row per finished round: who won, what the number was, and how many
-// guesses everyone made in total. Newest round first.
-export function RoundHistory({ rounds }) {
+// guesses everyone made in total. Newest round first. Every row opens that
+// round's replay (`onOpen`): the whole row is tappable, and its "View" button
+// is what keyboards and screen readers reach.
+function RoundNumbers({ r }) {
+  if (r.duel) {
+    return (
+      <span className="round-numbers">
+        {r.duel.numbers.map((n, i) => (
+          <span key={i} className="round-number" title={`${n.name}'s number`}>
+            <span className="round-number-who">{n.name}</span> {n.secret}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  return r.secret;
+}
+
+export function RoundHistory({ rounds, colors, players, onOpen }) {
   if (!rounds || rounds.length === 0) return null;
+  const colorOfName = (name) => {
+    const p = name && players ? players.find((x) => x.name.toLowerCase() === name.toLowerCase()) : null;
+    return p ? p.color : undefined;
+  };
+  void colors;
   return (
     <div className="scoreboard">
-      <table className="scoreboard-table">
+      <table className="scoreboard-table rounds-table">
         <thead>
           <tr>
             <th className="scoreboard-rank">Round</th>
             <th>Winner</th>
             <th className="scoreboard-num">Number</th>
-            <th className="scoreboard-num">Total tries</th>
+            <th className="scoreboard-num">Tries</th>
+            {onOpen && <th className="rounds-view-col"><span className="sr-only">Replay</span></th>}
           </tr>
         </thead>
         <tbody>
           {[...rounds].reverse().map((r) => (
-            <tr key={r.round}>
+            <tr key={r.round} className={onOpen ? "rounds-row" : undefined} onClick={onOpen ? () => onOpen(r.round) : undefined}>
               <td className="scoreboard-rank">{r.round}</td>
-              <td className="scoreboard-name">{r.winnerName || "No winner"}</td>
-              <td className="scoreboard-num">{r.secret}</td>
+              <td className="scoreboard-name">
+                {r.winnerName ? <><Swatch color={colorOfName(r.winnerName)} />{r.winnerName}</> : r.duel?.draw ? "Draw" : "No winner"}
+              </td>
+              <td className="scoreboard-num"><RoundNumbers r={r} /></td>
               <td className="scoreboard-num">{r.totalTries}</td>
+              {onOpen && (
+                <td className="rounds-view-col">
+                  <button type="button" className="secondary rounds-view" aria-label={`View replay of round ${r.round}`}>
+                    View <span aria-hidden="true">›</span>
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -409,6 +458,7 @@ export function GuessFeed({ players, playerId, digitNotes }) {
         key: `${p.id}-${h.at}`,
         playerId: p.id,
         name: p.name,
+        color: p.color,
         tag: awayTag(p),
         tryNum: i + 1,
         guess: h.guess,
@@ -432,7 +482,7 @@ export function GuessFeed({ players, playerId, digitNotes }) {
           <li key={g.key} className="guess-feed-item">
             <div className="guess-feed-head">
               <span className={`guess-feed-name${mine ? " guess-feed-name--mine" : ""}`} title={g.name}>
-                {mine ? "You" : g.name}{g.tag}
+                <Swatch color={g.color} />{mine ? "You" : g.name}{g.tag}
               </span>
               <span className="guess-feed-try small muted">Try {g.tryNum}</span>
             </div>
@@ -674,7 +724,7 @@ export function ScratchSheet({
   const all = [];
   for (const p of players) {
     p.history.forEach((h, i) => {
-      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, tag: awayTag(p), tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
+      all.push({ key: `${p.id}-${h.at}`, playerId: p.id, name: p.name, color: p.color, tag: awayTag(p), tryNum: i + 1, guess: h.guess, stars: h.stars, dots: h.dots, at: h.at });
     });
   }
   all.sort((a, b) => a.at - b.at);
@@ -720,7 +770,7 @@ export function ScratchSheet({
             return (
               <div key={g.key} className="sheet-row">
                 <span className="sheet-col sheet-num">{i + 1}</span>
-                <span className="sheet-col sheet-name" title={g.name}>{mine ? "You" : g.name}{g.tag}</span>
+                <span className="sheet-col sheet-name" title={g.name}><Swatch color={g.color} />{mine ? "You" : g.name}{g.tag}</span>
                 <span className="sheet-col sheet-digits">
                   {g.guess.split("").map((ch, di) => {
                     const mark = notes.digits[ch];

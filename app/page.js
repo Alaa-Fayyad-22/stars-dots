@@ -111,6 +111,12 @@ export default function Home() {
           <label>Number of digits</label>
           <DigitsChoice value={digits} onChange={setDigits} />
 
+          {mode === "duel" && (
+            <p className="small muted" style={{ marginTop: "0.5rem" }}>
+              You and one friend each pick a secret number. Take turns guessing — the first to crack the other's wins, and the second player always gets a fair last turn.
+            </p>
+          )}
+
           {mode === "computer" && (
             <p className="small muted" style={{ marginTop: "0.5rem" }}>
               The game will pick a random number each round — you play too, and you'll never see it while a round is live.

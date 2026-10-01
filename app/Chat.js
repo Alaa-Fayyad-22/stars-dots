@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHAT_PRESETS, findChatPreset } from "@/lib/chatPresets";
-import { post, copyText } from "@/lib/client";
+import { post, copyText, colorsById } from "@/lib/client";
+import { Swatch } from "./Board";
 import { playChatSound, preloadChatSounds } from "@/lib/audio";
 
 const WIDE_QUERY = "(min-width: 720px)";
@@ -67,6 +68,8 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
 
   // People who left (and can come back) are marked "(away)" in the chat.
   const awayIds = useMemo(() => new Set(state.players.filter((p) => p.removed && p.leaveReason === "left").map((p) => p.id)), [state.players]);
+  // Everyone's color, from the players already in the poll (no extra data on messages).
+  const colors = useMemo(() => colorsById(state.players), [state.players]);
 
   useEffect(() => {
     const update = () => setTabHidden(document.hidden);
@@ -121,7 +124,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
     const others = fresh.filter((m) => m.playerId !== playerId);
     if (!others.length || visibleRef.current) return;
     setUnread((n) => n + others.filter((m) => !m.presetId).length);
-    setToasts((q) => [...q, ...others.map((m) => ({ id: m.id, name: m.name, text: m.text, presetId: m.presetId }))]);
+    setToasts((q) => [...q, ...others.map((m) => ({ id: m.id, playerId: m.playerId, name: m.name, text: m.text, presetId: m.presetId }))]);
     // One sound per batch: the newest message's own sound, or the default.
     const last = others[others.length - 1];
     playChatSound(findChatPreset(last.presetId)?.sound);
@@ -223,7 +226,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
 
   return {
     wide, open, setOpen, expanded, setExpanded, panelRef, unread, toasts, openChat, dismissToast, typing, maxVisible,
-    messages, canSend, playerId, draft, setDraft, sending, error, setError, send, sendPreset, pickerId, setPickerId, awayIds,
+    messages, canSend, playerId, draft, setDraft, sending, error, setError, send, sendPreset, pickerId, setPickerId, awayIds, colors,
   };
 }
 
@@ -332,7 +335,7 @@ export function QuickPicker({ chat, id, placement = "above" }) {
 // text. Nothing here blocks scrolling or normal text selection: a press that
 // moves, a scroll, or an active selection cancels the copy, and no default
 // behavior is prevented on touch.
-function ChatMessage({ m, mine, label }) {
+function ChatMessage({ m, mine, label, color }) {
   const [copied, setCopied] = useState(false);
   const press = useRef(null);
   const hide = useRef(null);
@@ -381,7 +384,7 @@ function ChatMessage({ m, mine, label }) {
       onPointerLeave={cancel}
       onContextMenu={onContextMenu}
     >
-      <span className="chat-name">{label}</span>
+      <span className="chat-name"><Swatch color={color} />{label}</span>
       <span className="chat-text">{m.text}</span>
       {copied && <span className="chat-copied" role="status">Copied</span>}
     </li>
@@ -391,7 +394,7 @@ function ChatMessage({ m, mine, label }) {
 // The chat itself: messages and the text box. Used inside the phone sheet and
 // the wide-screen side panel. (Quick statements live in the 😀 picker.)
 export function ChatPanel({ chat }) {
-  const { messages: allMessages, canSend, playerId, draft, setDraft, sending, error, setError, send, awayIds } = chat;
+  const { messages: allMessages, canSend, playerId, draft, setDraft, sending, error, setError, send, awayIds, colors } = chat;
   // Quick statements only pop up as notifications; they're not shown in the chat list.
   const messages = allMessages.filter((m) => !m.presetId);
   const listRef = useRef(null);
@@ -446,7 +449,7 @@ export function ChatPanel({ chat }) {
             messages.map((m) => {
               const mine = m.playerId === playerId;
               const label = `${mine ? "You" : m.name}${awayIds.has(m.playerId) ? " (away)" : ""}`;
-              return <ChatMessage key={m.id} m={m} mine={mine} label={label} />;
+              return <ChatMessage key={m.id} m={m} mine={mine} label={label} color={colors[m.playerId]} />;
             })
           )}
         </ol>
@@ -515,7 +518,7 @@ export function ChatDock({ chat, hidden }) {
   const alert = toasts[0];
   const chatOnly = messages.filter((m) => !m.presetId);
   const last = chatOnly[chatOnly.length - 1];
-  const preview = last ? `${last.playerId === chat.playerId ? "You" : last.name}: ${last.text}` : "Say something to the table";
+  const preview = last ? <><Swatch color={chat.colors[last.playerId]} />{`${last.playerId === chat.playerId ? "You" : last.name}: ${last.text}`}</> : "Say something to the table";
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -558,7 +561,7 @@ export function ChatDock({ chat, hidden }) {
           </svg>
           {alert ? (
             <>
-              <span className="chat-dock-name">{alert.name}</span>
+              <span className="chat-dock-name"><Swatch color={chat.colors[alert.playerId]} />{alert.name}</span>
               <span className="chat-dock-preview chat-dock-preview--alert">{alert.text}</span>
             </>
           ) : (
@@ -736,7 +739,7 @@ function ToastItem({ t, chat }) {
       onClickCapture={(e) => { if (justDragged.current) { e.stopPropagation(); e.preventDefault(); } }}
     >
       <button type="button" className="chat-toast-open" onClick={chat.openChat}>
-        <span className="chat-toast-name">{t.name}</span>
+        <span className="chat-toast-name"><Swatch color={chat.colors[t.playerId]} />{t.name}</span>
         <span className="chat-toast-text">{t.text}</span>
       </button>
       <button type="button" className="chat-toast-dismiss" onClick={() => chat.dismissToast(t.id)} aria-label={`Dismiss message from ${t.name}`}>✕</button>

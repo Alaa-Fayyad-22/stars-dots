@@ -36,6 +36,8 @@ const suites = [
   "./comeback.test.js",
   "./security.test.js",
   "./perf.test.js",
+  "./features.test.js",
+  "./duel.test.js",
 ];
 
 for (const path of suites) {

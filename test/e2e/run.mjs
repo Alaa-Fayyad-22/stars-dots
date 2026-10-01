@@ -4,7 +4,7 @@ const which = process.argv[2] || "all";
 const vps = (process.argv[3] || "phone,tablet,laptop").split(",");
 const browser = await launch();
 const suites = which === "all"
-  ? ["s1-rotation", "s2-leave", "s3-picker", "s4-part5", "s5-oldstorage", "s6-tapcheck", "s7-computer"]
+  ? ["s1-rotation", "s2-leave", "s3-picker", "s4-part5", "s5-oldstorage", "s6-tapcheck", "s7-computer", "s8-features", "s9-duel"]
   : which.split(",");
 for (const name of suites) {
   const mod = await import(`./${name}.mjs`);

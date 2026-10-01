@@ -827,3 +827,172 @@ button:not(:disabled):active { transform: scale(0.97); }
 .away-note { margin-top: 0.7rem; }
 .leave-row { margin-top: 1.2rem; padding-top: 0.6rem; border-top: 1px dashed var(--line); }
 .leave-quiet { width: auto; margin: 0; padding: 0.4rem 0.9rem; min-height: 44px; font-size: 0.9rem; color: var(--muted); border-color: var(--line); }
+
+/* ================= Player colors ================= */
+/* Ten colors (lib/colors.js has the names). Chosen to stay clear of the star's
+   amber, the dot's steel blue and the ✕ red-orange; shown as a small vertical
+   bar next to the name (never a circle or star), so the name is always what
+   identifies someone and color only helps. One shade per theme so each keeps
+   at least ~3:1 against the page. */
+:root {
+  --pc0: #7b4bd4; --pc1: #0f8f7f; --pc2: #d6409f; --pc3: #6f8a0c; --pc4: #4a5bd8;
+  --pc5: #94603a; --pc6: #a63bb5; --pc7: #0a8db8; --pc8: #3f9a2f; --pc9: #5b6472;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pc0: #a78bf5; --pc1: #3fd0bb; --pc2: #f47fc6; --pc3: #b4d43a; --pc4: #8f9cff;
+    --pc5: #d49a68; --pc6: #d98be8; --pc7: #5fd0f2; --pc8: #7bd66a; --pc9: #b7c0cc;
+  }
+}
+:root[data-theme="dark"] {
+  --pc0: #a78bf5; --pc1: #3fd0bb; --pc2: #f47fc6; --pc3: #b4d43a; --pc4: #8f9cff;
+  --pc5: #d49a68; --pc6: #d98be8; --pc7: #5fd0f2; --pc8: #7bd66a; --pc9: #b7c0cc;
+}
+.swatch {
+  display: inline-block; flex: 0 0 auto; width: 0.42rem; height: 1.05em; margin-right: 0.4rem;
+  border-radius: 2px; background: var(--pc, transparent); vertical-align: -0.17em;
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
+}
+.sheet-name { width: 5rem; }
+.who-inline { display: inline-flex; align-items: center; min-width: 0; }
+
+/* ================= Buttons that are links ================= */
+.button-link {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  min-height: 3rem; margin-top: 0.9rem; padding: 0.85rem 1rem;
+  border: 2px solid var(--ink); border-radius: 10px; background: var(--ink); color: var(--paper);
+  font-weight: 700; text-decoration: none;
+}
+
+/* ================= Rounds table: every row opens a replay ================= */
+.rounds-row { cursor: pointer; }
+.rounds-row:hover td { background: color-mix(in srgb, var(--star) 9%, transparent); }
+.rounds-view-col { width: 1%; text-align: right; white-space: nowrap; padding-right: 0; }
+.rounds-view { width: auto; margin: 0; min-width: 44px; min-height: 44px; padding: 0.3rem 0.6rem; font-size: 0.85rem; }
+.round-numbers { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; }
+.round-number { white-space: nowrap; }
+.round-number-who { font-family: var(--ui); color: var(--muted); font-size: 0.72rem; display: inline-block; max-width: 4.2rem; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.summary-open { margin-top: 0.7rem; min-height: 44px; }
+
+/* ================= Sound settings ================= */
+.topbar-actions { align-items: center; }
+.sound { position: relative; }
+/* (two classes, so these win over the top bar's own button rule) */
+.sound .sound-btn { width: 44px; min-height: 44px; margin: 0; padding: 0; display: grid; place-items: center; }
+.sound-pop {
+  position: absolute; right: 0; top: calc(100% + 0.4rem); z-index: 90;
+  width: min(19rem, calc(100vw - 2.2rem)); padding: 0.3rem 0.7rem 0.7rem;
+  background: var(--panel); color: var(--ink); border: 2px solid var(--ink); border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+.sound-pop .switch-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+  width: 100%; margin: 0; min-height: 56px; padding: 0.4rem 0.1rem;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink);
+  text-align: left; font-weight: 400;
+}
+.sound-pop .switch-text { display: flex; flex-direction: column; min-width: 0; }
+.switch-label { font-weight: 700; }
+.switch-track {
+  position: relative; flex: 0 0 auto; width: 2.9rem; height: 1.7rem; border-radius: 999px;
+  border: 2px solid var(--ink); background: transparent; transition: background-color 0.15s ease;
+}
+.switch-thumb { position: absolute; top: 2px; left: 2px; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--ink); transition: transform 0.15s ease; }
+.switch-track--on { background: var(--win); border-color: var(--win); }
+.switch-track--on .switch-thumb { transform: translateX(1.2rem); background: #06180d; }
+.sound-note { margin: 0.6rem 0 0; }
+
+/* ================= Modal: bottom sheet on phones, dialog on wider screens ================= */
+.modal {
+  padding: 0; margin: 0; border: none; width: 100vw; max-width: 100vw; max-height: 92vh; max-height: 92dvh;
+  background: var(--paper); color: var(--ink); overflow: hidden; border-radius: 18px 18px 0 0;
+}
+.modal[open] { display: flex; flex-direction: column; position: fixed; inset: auto 0 0 0; height: auto; }
+.modal::backdrop { background: rgba(0, 0, 0, 0.55); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex: 0 0 auto; padding: 0.7rem 1rem 0.6rem; border-bottom: 2px solid var(--line); }
+.modal-head h2 { margin: 0; }
+.modal-close { width: 44px; height: 44px; min-height: 0; margin: 0; padding: 0; border-radius: 999px; flex: 0 0 auto; }
+.modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.9rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 720px) {
+  .modal { width: min(92vw, 40rem); max-width: 40rem; max-height: 88vh; border: 2px solid var(--line); border-radius: 16px; }
+  .modal[open] { inset: 0; margin: auto; height: fit-content; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .modal[open] { animation: modal-in 0.2s ease-out; }
+  @keyframes modal-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+}
+
+/* ================= Round replay ================= */
+.replay-numbers { display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; padding: 0.1rem 0 0.9rem; border-top: 0; }
+.replay-number { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.replay-number-label { font-weight: 700; overflow-wrap: anywhere; }
+.tile--lg { width: 3.1rem; height: 3.7rem; font-size: 2rem; }
+.tile--sm { width: 2.1rem; height: 2.5rem; font-size: 1.3rem; border-radius: 6px; }
+.tile--right { background: var(--star); border-color: var(--star); color: #201404; }
+.tile--wrong { background: var(--dot); border-color: var(--dot); color: var(--paper); }
+.tile--none { background: transparent; border-style: dashed; border-color: var(--muted); color: var(--muted); }
+.replay-meta { margin: 0 0 0.6rem; display: grid; gap: 0.3rem; }
+.replay-meta > div { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); gap: 0.5rem; }
+.replay-meta dt { color: var(--muted); font-size: 0.9rem; }
+.replay-meta dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.replay-h { margin: 0.8rem 0 0.4rem; font-size: 1.05rem; font-weight: 800; }
+.digit-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; margin: 0 0 0.7rem; padding: 0; }
+.digit-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.digit-legend .tile { width: 1.5rem; height: 1.8rem; font-size: 1rem; }
+.replay-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.replay-guess { border: 2px solid var(--line); border-radius: 12px; padding: 0.5rem 0.7rem; background: var(--panel); }
+.replay-guess--win { border-color: var(--win); background: color-mix(in srgb, var(--win) 14%, var(--panel)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--win) 22%, transparent); }
+.replay-guess--crack { border-color: var(--star); }
+.replay-guess-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.3rem; }
+.replay-n { font-family: var(--digits); color: var(--muted); min-width: 1.6rem; flex: 0 0 auto; }
+.replay-name { flex: 1 1 auto; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.replay-time { flex: 0 0 auto; font-family: var(--digits); }
+.replay-guess-body { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.replay-guess-body .tiles { gap: 0.25rem; }
+.replay-badge { font-size: 0.8rem; font-weight: 800; padding: 0.1rem 0.6rem; border-radius: 999px; background: var(--win); color: #06180d; }
+.replay-badge--soft { background: transparent; color: var(--star); border: 1px solid var(--star); }
+
+/* ================= Summary and Game over ================= */
+.summary-h { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 800; margin: 0 0 0.3rem; }
+.summary-h--row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.summary-code { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 0.78rem; }
+.standings { list-style: none; margin: 0 0 0.7rem; padding: 0; }
+.standing { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto auto; gap: 0.5rem; align-items: center; padding: 0.12rem 0.4rem; border-bottom: 1px solid var(--line); border-radius: 8px; }
+.standing--leader { background: color-mix(in srgb, var(--star) 14%, transparent); }
+.standing-rank { font-family: var(--digits); color: var(--muted); }
+.standing-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.standing--me .standing-name { font-weight: 800; }
+.standing-wins { font-family: var(--digits); font-size: 0.9rem; white-space: nowrap; }
+.standing-avg { white-space: nowrap; min-width: 4rem; text-align: right; font-family: var(--digits); }
+.awards { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.award { display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0.3rem 0.6rem; border: 2px solid var(--line); border-radius: 12px; background: var(--paper); }
+.award-title { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 800; line-height: 1.2; }
+.award-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 0.5rem; }
+.award-who { font-weight: 800; font-size: 0.95rem; overflow-wrap: anywhere; line-height: 1.2; }
+.award-name { display: inline-flex; align-items: center; margin-right: 0.35rem; }
+.award-value { font-family: var(--digits); font-size: 0.85rem; color: var(--muted); }
+.award-guess { color: var(--ink); font-weight: 700; letter-spacing: 0.06em; }
+.summary-stats { display: flex; gap: 0.3rem 1.2rem; flex-wrap: wrap; margin: 0; }
+@media (min-width: 720px) {
+  .awards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.gameover { border-top: 0; padding: 0.4rem 0 1rem; }
+.gameover-card {
+  border: 2px solid var(--ink); border-radius: 18px; background: var(--panel); padding: 0.9rem 0.95rem 1rem;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--star) 22%, transparent);
+}
+.gameover-head { position: relative; text-align: left; margin-bottom: 0.5rem; }
+.gameover-title-row { display: flex; align-items: center; justify-content: flex-start; gap: 0.6rem; padding-right: 3.2rem; }
+.gameover-head h1 { margin: 0; font-size: clamp(1.7rem, 8vw, 2.2rem); }
+.gameover-sound { position: absolute; top: -0.2rem; right: -0.2rem; }
+.gameover-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.gameover-actions > * { flex: 1 1 8rem; margin-top: 0; }
+.gameover-rounds { margin-top: 1rem; }
+
+/* ================= Duel ================= */
+.duel-reveal { display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; margin: -0.3rem 0 1rem; }
+.duel-list { margin-bottom: 1.1rem; }
+.duel-list-h { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.3rem; font-size: 1rem; font-weight: 800; margin: 0 0 0.5rem; overflow-wrap: anywhere; }
+.banner-actions { display: inline-flex; gap: 0.5rem; flex-wrap: wrap; }
+.duel-away-actions { margin: -0.4rem 0 1rem; }
+.duel-away-actions > button { margin-top: 0; }

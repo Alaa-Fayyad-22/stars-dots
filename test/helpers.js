@@ -184,6 +184,7 @@ export function wrapGame(raw) {
   const actorAt = {
     getState: [1], pickSecret: [1], submitGuess: [1], skipTurn: [1], removePlayer: [1], restorePlayer: [1],
     endRound: [1], newRound: [1], leaveGame: [1], comeBack: [1], sendChatMessage: [1],
+    endGame: [1], getReplay: [1], getSummary: [1],
   };
   const wrapped = { ...raw, tokens, tokenOf: (id) => tokens.get(id) };
   for (const name of ["createRoom", "joinRoom", "rejoinRoom"]) wrapped[name] = async (...a) => learn(await raw[name](...a));

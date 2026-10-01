@@ -5,11 +5,15 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Legend, DigitEntry, PinEntry, RoundBanner, GuessFeed, PlayerNotes, DraftBoxes,
-  ScratchSheet, Scoreboard, RoundHistory, DuplicateWarning,
+  ScratchSheet, Scoreboard, RoundHistory, DuplicateWarning, Swatch,
 } from "../../Board";
 import {
+  SoundSettings, ReplayDialog, SummaryDialog, SummaryButton, GameOverScreen, EndGameControl,
+  DuelBanner, DuelGuessLists, DuelControls,
+} from "../../Extras";
+import {
   savePlayer, loadPlayer, post, fetchState, usePlayerNotes, digitsOnly, findDuplicateGuess, draftGuessReason,
-  canPlayerGuess, guessButtonLabel, sheetStatus, loadFlag, saveFlag, copyText, awayTag,
+  canPlayerGuess, guessButtonLabel, sheetStatus, loadFlag, saveFlag, copyText, awayTag, colorsById, duelView,
 } from "@/lib/client";
 import { unlockAudio, playBeep } from "@/lib/audio";
 import { useChat, ChatSection, ChatSheet, ChatDock, ChatToasts, ChatCorner, QuickPicker, TurnToast } from "../../Chat";
@@ -18,7 +22,7 @@ import { useChat, ChatSection, ChatSheet, ChatDock, ChatToasts, ChatCorner, Quic
 const POLL_MS = 3000;
 const TURN_TOAST_MS = 3000;
 
-const MODE_LABEL = { rotating: "Rotating host", computer: "Computer host" };
+const MODE_LABEL = { rotating: "Rotating host", computer: "Computer host", duel: "Duel" };
 export default function Game() {
   const code = String(useParams().code || "").toUpperCase();
   const [cred, setCred] = useState(null);
@@ -109,6 +113,7 @@ function TopBar({ code, state }) {
       <div className="topbar-actions">
         <button className="secondary" onClick={invite}>{copied ? "Link copied" : "Invite"}</button>
         <Link href="/"><button className="secondary">New game</button></Link>
+        <SoundSettings />
       </div>
     </div>
   );
@@ -142,7 +147,7 @@ function EntryForm({ code, state, onJoined }) {
 
   return (
     <section className="state-card">
-      <h1>Join {state.organizerName ? `${state.organizerName}'s` : "the"} game</h1>
+      <h1>Join {state.organizerName ? `${state.organizerName}'s` : "the"} {state.mode === "duel" ? "duel" : "game"}</h1>
       <p className="muted">Game code</p>
       <div className="room-code room-code--big">{code}</div>
       <p className="small muted">{state.digits} digits · {MODE_LABEL[state.mode]}</p>
@@ -184,7 +189,7 @@ function EntryForm({ code, state, onJoined }) {
   );
 }
 
-function PickSecretForm({ code, cred, digits, onDone }) {
+function PickSecretForm({ code, cred, digits, onDone, duel }) {
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -197,16 +202,16 @@ function PickSecretForm({ code, cred, digits, onDone }) {
   }
   return (
     <section>
-      <h2>Pick the number</h2>
-      <p className="small muted">Only you'll see it. {digits} different digits, not starting with 0.</p>
+      <h2>{duel ? "Pick your number" : "Pick the number"}</h2>
+      <p className="small muted">{duel ? "Only you'll see it — your opponent will try to crack it. " : "Only you'll see it. "}{digits} different digits, not starting with 0.</p>
       <DigitEntry id="pick" value={secret} onChange={setSecret} digits={digits} mask onEnter={submit} />
-      <button onClick={submit} disabled={busy || secret.length !== digits}>Start the round</button>
+      <button onClick={submit} disabled={busy || secret.length !== digits}>{duel ? "Lock in my number" : "Start the round"}</button>
       {error && <p className="error" role="alert">{error}</p>}
     </section>
   );
 }
 
-function EndRoundControl({ code, cred, onDone }) {
+function EndRoundControl({ code, cred, onDone, duel }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -221,7 +226,7 @@ function EndRoundControl({ code, cred, onDone }) {
   }
   return (
     <div className="confirm-box">
-      <p className="small">End this round with no winner? The number will be revealed to everyone, and nobody scores.</p>
+      <p className="small">{duel ? "End this round with no winner? Both numbers will be revealed, and nobody scores." : "End this round with no winner? The number will be revealed to everyone, and nobody scores."}</p>
       <div className="confirm-actions">
         <button type="button" className="secondary" onClick={confirm} disabled={busy}>Yes, end round</button>
         <button type="button" className="secondary" onClick={() => setConfirming(false)} disabled={busy}>Cancel</button>
@@ -305,6 +310,7 @@ function HostControls({ code, cred, state, onAction }) {
               {skipError && <p className="error" role="alert">{skipError}</p>}
             </>
           )}
+          <EndGameControl code={code} cred={cred} onDone={onAction} />
           <LeaveGameControl code={code} cred={cred} onLeft={onAction} />
         </div>
       )}
@@ -391,13 +397,21 @@ function GameView({ state, code, cred, onAction }) {
   const [rejoinBusy, setRejoinBusy] = useState(false);
   const [rejoinError, setRejoinError] = useState("");
   const [turnToast, setTurnToast] = useState(null);
+  const [replayRound, setReplayRound] = useState(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // A duel has its own banner, pick step, guess lists and controls; everything
+  // else on this screen (guessing, notes, draft, scratch sheet, chat, alerts)
+  // is shared with the other modes.
+  const isDuel = state.mode === "duel";
+  const duel = isDuel ? duelView(state, playerId) : null;
 
   // Whoever currently holds host/organizer controls right now — the actual
   // host, or, during a hostless rotating round, whoever picked up controls
   // when the host left. Always checked again on the server too.
   const isControlsHolder = state.isControlsHolder;
   const iAmHostThisRound = state.mode === "rotating" && state.isHost;
-  const canGuess = canPlayerGuess({
+  const canGuess = isDuel ? duel.myTurn : canPlayerGuess({
     roundState: state.roundState,
     isHostThisRound: iAmHostThisRound,
     solved: state.me.solved,
@@ -456,21 +470,26 @@ function GameView({ state, code, cred, onAction }) {
   const dismissTurnToast = () => setTurnToast(null);
 
   const { notes, toggleDigit, setDraft, clearDraft, clear } = usePlayerNotes(code, state.round, digits);
-  const dup = guess.length === digits ? findDuplicateGuess(state.players, guess, playerId) : null;
+  // In a duel every guess is aimed at a different number, so only my own guesses count as repeats.
+  const dupPlayers = isDuel ? state.players.filter((p) => p.id === playerId) : state.players;
+  const dup = guess.length === digits ? findDuplicateGuess(dupPlayers, guess, playerId) : null;
+  const colors = colorsById(state.players);
 
   const draftString = notes.draft.join("");
   const draftReason = draftGuessReason({
     draft: notes.draft,
     digits,
     players: state.players,
+    dupPlayers,
     playerId,
     roundState: state.roundState,
     isHostThisRound: iAmHostThisRound,
     solved: state.me.solved,
     currentPlayerId: state.currentPlayerId,
   });
-  const draftCanSubmit = draftReason === null;
-  const draftSubmitMessage = draftGuessError || (!draftGuessBusy && !draftCanSubmit ? draftReason : null);
+  const draftBlocked = isDuel && duel.away ? `Waiting for ${duel.oppName} to come back` : draftReason;
+  const draftCanSubmit = draftBlocked === null;
+  const draftSubmitMessage = draftGuessError || (!draftGuessBusy && !draftCanSubmit ? draftBlocked : null);
 
   // Shared by both the main "Check guess" button and the scratch sheet's
   // "Submit guess" button, so server validation, duplicate protection, and
@@ -558,6 +577,29 @@ function GameView({ state, code, cred, onAction }) {
   const sheetToast = turnToast ? <TurnToast place="sheet" onDismiss={dismissTurnToast} /> : null;
   const chatToast = turnToast ? <TurnToast place="chat" onDismiss={dismissTurnToast} /> : null;
 
+  // The Rounds table (every row opens that round's replay) and the dialogs it
+  // and the scoreboard open. Replays and the summary load only when opened.
+  const roundsTable = <RoundHistory rounds={state.rounds} players={state.players} onOpen={setReplayRound} />;
+  const dialogs = (
+    <>
+      {replayRound != null && <ReplayDialog code={code} cred={cred} round={replayRound} onClose={() => setReplayRound(null)} />}
+      {summaryOpen && <SummaryDialog code={code} cred={cred} playerId={playerId} onClose={() => setSummaryOpen(false)} />}
+    </>
+  );
+  const openSummary = () => setSummaryOpen(true);
+
+  // The game has been ended: everyone sees the Game over screen (chat and
+  // replays stay available).
+  if (state.gameOver) {
+    return (
+      <>
+        <GameOverScreen code={code} cred={cred} playerId={playerId} rounds={roundsTable} />
+        {dialogs}
+        <ChatLayer chat={chat} sheetOpen={false} chatToast={chatToast} />
+      </>
+    );
+  }
+
   if (state.me.removed) {
     const away = state.me.leaveReason === "left";
     return (
@@ -583,23 +625,27 @@ function GameView({ state, code, cred, onAction }) {
             </section>
             <section>
               <h2>Scoreboard</h2>
-              <Scoreboard scoreboard={state.scoreboard} playerId={playerId} />
+              <Scoreboard scoreboard={state.scoreboard} playerId={playerId} colors={colors} />
+              <SummaryButton onClick={openSummary} />
             </section>
             {state.rounds?.length > 0 && (
               <section>
                 <h2>Rounds</h2>
-                <RoundHistory rounds={state.rounds} />
+                {roundsTable}
               </section>
             )}
           </div>
           <div className="col-side">
             {chat.wide && <ChatSection chat={chat} />}
             <section>
-              <h2>Everyone's guesses</h2>
-              <GuessFeed players={state.players} playerId={playerId} />
+              <h2>{isDuel ? "Guesses" : "Everyone's guesses"}</h2>
+              {isDuel
+                ? <DuelGuessLists mine={duel.mine} opp={duel.opp} />
+                : <GuessFeed players={state.players} playerId={playerId} />}
             </section>
           </div>
         </div>
+        {dialogs}
         <ChatLayer chat={chat} sheetOpen={false} chatToast={chatToast} />
       </>
     );
@@ -614,12 +660,28 @@ function GameView({ state, code, cred, onAction }) {
       <div className="two-up">
         <div className="col-main">
           <section>
-            <RoundBanner
-              state={state}
-              playerId={playerId}
-              onNextRoundClick={nextRound}
-              nextRoundBusy={nextRoundBusy}
-            />
+            {isDuel ? (
+              <DuelBanner
+                state={state}
+                playerId={playerId}
+                view={duel}
+                onNextRound={nextRound}
+                nextRoundBusy={nextRoundBusy}
+                onOpenReplay={setReplayRound}
+              />
+            ) : (
+              <RoundBanner
+                state={state}
+                playerId={playerId}
+                onNextRoundClick={nextRound}
+                nextRoundBusy={nextRoundBusy}
+              />
+            )}
+            {isDuel && duel.away && (
+              <div className="duel-away-actions">
+                <EndGameControl code={code} cred={cred} onDone={onAction} />
+              </div>
+            )}
             {showGuessForm && (
               <>
                 <button type="button" className="secondary sheet-open" onClick={openSheet}>Scratch sheet</button>
@@ -636,7 +698,7 @@ function GameView({ state, code, cred, onAction }) {
                 />
                 <DuplicateWarning dup={dup} />
                 <button data-guard="guess-btn" onClick={submitGuess} disabled={guessBusy || guess.length !== digits || !canGuess || !!dup}>
-                  {guessButtonLabel({ canGuess, players: state.players, currentPlayerId: state.currentPlayerId })}
+                  {isDuel && duel.away ? `Waiting for ${duel.oppName}` : guessButtonLabel({ canGuess, players: state.players, currentPlayerId: state.currentPlayerId })}
                 </button>
                 {guessError && <p className="error" role="alert">{guessError}</p>}
                 <Legend />
@@ -650,14 +712,21 @@ function GameView({ state, code, cred, onAction }) {
           {state.mode === "rotating" && state.isHost && state.roundState === "pending" && (
             <PickSecretForm code={code} cred={cred} digits={digits} onDone={onAction} />
           )}
+          {isDuel && state.roundState === "pending" && duel.opp && !duel.away && !duel.myPicked && (
+            <PickSecretForm code={code} cred={cred} digits={digits} onDone={onAction} duel />
+          )}
           {iAmHostThisRound && state.roundState === "active" && state.secret && (
             <SecretReveal secret={state.secret} />
+          )}
+          {isDuel && state.roundState !== "ended" && state.duel.mySecret && (
+            <SecretReveal secret={state.duel.mySecret} />
           )}
 
           {betweenRounds && (
             <section>
               <h2>Scoreboard</h2>
-              <Scoreboard scoreboard={state.scoreboard} playerId={playerId} />
+              <Scoreboard scoreboard={state.scoreboard} playerId={playerId} colors={colors} />
+              <SummaryButton onClick={openSummary} />
             </section>
           )}
 
@@ -691,7 +760,7 @@ function GameView({ state, code, cred, onAction }) {
               organizerName={state.organizerName}
               controlsHolderName={state.mode === "rotating" && !state.hostName ? state.controlsHolderName : null}
               protectedIds={[playerId, state.hostId, state.controlsHolderId].filter(Boolean)}
-              onRemove={isControlsHolder ? removePlayerFromGame : null}
+              onRemove={isControlsHolder && !isDuel ? removePlayerFromGame : null}
               removeBusyId={removeBusyId}
             />
             {removeError && <p className="error" role="alert">{removeError}</p>}
@@ -704,6 +773,7 @@ function GameView({ state, code, cred, onAction }) {
                     .map((p) => (
                       <li key={p.id} className="who">
                         <span className="who-name">
+                          <Swatch color={p.color} />
                           <span className="who-name-text">{p.name}</span>
                         </span>
                         <button
@@ -722,7 +792,14 @@ function GameView({ state, code, cred, onAction }) {
             {awayPlayers.length > 0 && isControlsHolder && (
               <p className="small muted away-note">Players marked "(away)" left on their own and can come back anytime with their name and PIN.</p>
             )}
-            {isControlsHolder ? (
+            {isControlsHolder && isDuel ? (
+              <DuelControls
+                state={state}
+                endRound={<EndRoundControl code={code} cred={cred} onDone={onAction} duel />}
+                endGame={<EndGameControl code={code} cred={cred} onDone={onAction} />}
+                leave={<LeaveGameControl code={code} cred={cred} onLeft={onAction} />}
+              />
+            ) : isControlsHolder ? (
               <HostControls code={code} cred={cred} state={state} onAction={onAction} />
             ) : (
               <div className="leave-row">
@@ -736,17 +813,20 @@ function GameView({ state, code, cred, onAction }) {
           {chat.wide && <ChatSection chat={chat} />}
           <section>
             <h2>Scoreboard</h2>
-            <Scoreboard scoreboard={state.scoreboard} playerId={playerId} />
+            <Scoreboard scoreboard={state.scoreboard} playerId={playerId} colors={colors} />
+            <SummaryButton onClick={openSummary} />
           </section>
           {state.rounds?.length > 0 && (
             <section>
               <h2>Rounds</h2>
-              <RoundHistory rounds={state.rounds} />
+              {roundsTable}
             </section>
           )}
           <section>
-            <h2>Everyone's guesses</h2>
-            <GuessFeed players={state.players} playerId={playerId} digitNotes={notes.digits} />
+            <h2>{isDuel ? "Guesses" : "Everyone's guesses"}</h2>
+            {isDuel
+              ? <DuelGuessLists mine={duel.mine} opp={duel.opp} digitNotes={notes.digits} />
+              : <GuessFeed players={state.players} playerId={playerId} digitNotes={notes.digits} />}
           </section>
 
         </div>
@@ -756,7 +836,7 @@ function GameView({ state, code, cred, onAction }) {
         <ScratchSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
-          players={state.players}
+          players={isDuel && duel.mine ? [duel.mine] : state.players}
           playerId={playerId}
           notes={notes}
           digits={digits}
@@ -783,6 +863,7 @@ function GameView({ state, code, cred, onAction }) {
         />
       )}
       {pageToast}
+      {dialogs}
       <ChatLayer chat={chat} sheetOpen={sheetOpen} chatToast={chatToast} />
     </>
   );
@@ -830,6 +911,7 @@ function PlayerList({
           <li key={p.id} className={`who${p.id === currentPlayerId ? " who--turn" : ""}`}>
             <span className="who-name">
               {p.id === currentPlayerId ? <span className="turn-arrow" aria-hidden="true">▶</span> : null}
+              <Swatch color={p.color} />
               <span className="who-name-text">{p.name}{tags.length ? ` (${tags.join(", ")})` : ""}</span>
             </span>
             <span className={`who-tries ${p.solved ? "solved" : "muted"}`}>
@@ -858,6 +940,7 @@ function PlayerList({
       {away.map((p) => (
         <li key={p.id} className="who who--away">
           <span className="who-name">
+            <Swatch color={p.color} />
             <span className="who-name-text">{p.name}{awayTag(p)}{p.id === playerId ? " (you)" : ""}</span>
           </span>
           <span className="who-tries muted">{p.tries} {p.tries === 1 ? "try" : "tries"}</span>
