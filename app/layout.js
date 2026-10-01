@@ -1,5 +1,6 @@
 import "./globals.css";
 import InstallCapture from "./InstallCapture";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
   title: "Stars & Dots",
@@ -44,6 +45,7 @@ export default function RootLayout({ children }) {
       <body>
         <InstallCapture />
         <main className="shell">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
