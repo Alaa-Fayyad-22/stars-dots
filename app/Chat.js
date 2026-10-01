@@ -241,6 +241,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
 // that statement at once. Only one picker is ever open (see `pickerId`).
 export function QuickPicker({ chat, id, placement = "above" }) {
   const { pickerId, setPickerId, sendPreset, canSend, special } = chat;
+  const regular = special.length ? [] : CHAT_PRESETS;
   const open = pickerId === id;
   const [busyId, setBusyId] = useState(null);
   const [sentId, setSentId] = useState(null);
@@ -291,8 +292,7 @@ export function QuickPicker({ chat, id, placement = "above" }) {
   }, [busyId, sentId, sendPreset, setPickerId]);
 
   if (!canSend) return null;
-  const single = [...CHAT_PRESETS, ...special].some((p) => Array.from(p.text).length > LONG_STATEMENT);
-
+  const single = [...regular, ...special].some((p) => Array.from(p.text).length > LONG_STATEMENT);
   return (
     <div className={`qs qs--${id} qs--${placement}`} ref={rootRef}>
       <button
@@ -308,8 +308,8 @@ export function QuickPicker({ chat, id, placement = "above" }) {
       </button>
       {open && (
         <div className="qs-pop" role="group" aria-label="Quick statements">
-          {[CHAT_PRESETS, special].map((list, i) => list.length > 0 && (
-            <div key={i} className={`qs-grid${single ? " qs-grid--single" : ""}${i ? " qs-grid--special" : ""}`}>
+         {[regular, special].map((list, i) => list.length > 0 && (
+          <div key={i} className={`qs-grid${single ? " qs-grid--single" : ""}${i && regular.length ? " qs-grid--special" : ""}`}>
               {list.map((p) => {
                 const state = sentId === p.id ? "sent" : busyId === p.id ? "sending" : "idle";
                 return (
