@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import InstallHint from "./InstallHint";
 import { PinEntry, HowToPlay, Legend, ModeChoice, DigitsChoice } from "./Board";
 import { savePlayer, post, fetchState, awayTag } from "@/lib/client";
 
@@ -88,6 +89,8 @@ export default function Home() {
         </div>
         <p className="muted lead">Someone picks a secret number — or the game does. Everyone else races to crack it, no accounts, just a code.</p>
       </section>
+
+      <InstallHint />
 
       <section>
         <h2>How to play</h2>

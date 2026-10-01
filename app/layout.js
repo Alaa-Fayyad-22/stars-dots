@@ -1,8 +1,22 @@
 import "./globals.css";
+import InstallCapture from "./InstallCapture";
 
 export const metadata = {
   title: "Stars & Dots",
   description: "Guess the 4-digit number with your friends.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  // iPhone / iPad home-screen app. "default" keeps the status bar solid and
+  // readable in light and dark mode (black-translucent would put white text on
+  // the light page); the page starts below it.
+  appleWebApp: { capable: true, title: "Stars & Dots", statusBarStyle: "default" },
+  // Older iOS versions only look for the Apple-prefixed name.
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport = {
@@ -28,6 +42,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        <InstallCapture />
         <main className="shell">{children}</main>
       </body>
     </html>

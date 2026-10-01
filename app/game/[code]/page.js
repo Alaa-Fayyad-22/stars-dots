@@ -73,7 +73,14 @@ export default function Game() {
       </section>
     );
   }
-  if (!ready || !state) return <p className="muted loading">Loading game {code}…</p>;
+  if (!ready || !state) {
+    return (
+      <>
+        <p className="muted loading">Loading game {code}…</p>
+        <p className="loading-home"><Link href="/" className="small muted">Back to home</Link></p>
+      </>
+    );
+  }
 
   // Opened an invite link but not in the game yet (or lost / outdated saved data)
   if (!state.me) {
@@ -185,6 +192,7 @@ function EntryForm({ code, state, onJoined }) {
         </>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      <Link href="/" className="button-link button-link--quiet">Back to home</Link>
     </section>
   );
 }

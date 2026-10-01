@@ -996,3 +996,37 @@ button:not(:disabled):active { transform: scale(0.97); }
 .banner-actions { display: inline-flex; gap: 0.5rem; flex-wrap: wrap; }
 .duel-away-actions { margin: -0.4rem 0 1rem; }
 .duel-away-actions > button { margin-top: 0; }
+
+/* ================= Installed app (home-screen) ================= */
+/* Install hint on the home page */
+.install-hint {
+  display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.6rem; padding: 0.35rem 0.4rem 0.35rem 0.9rem;
+  background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+}
+.install-hint p { flex: 1 1 auto; min-width: 0; margin: 0; }
+.install-hint button { width: auto; margin: 0; min-height: 44px; }
+.install-btn { flex: 0 0 auto; padding: 0.4rem 0.9rem; font-size: 0.9rem; }
+.install-dismiss { flex: 0 0 auto; min-width: 44px; padding: 0; border-color: transparent; color: var(--muted); border-radius: 999px; }
+
+/* A way home from the "Loading" and join screens (no browser back button in the app) */
+.loading-home { text-align: center; margin: 0; }
+.loading-home a { display: inline-flex; align-items: center; min-height: 44px; }
+.button-link--quiet { background: transparent; color: var(--ink); }
+
+/* Notch / home indicator when the app runs full-screen (landscape side insets; the top and
+   bottom ones are already in the rules above). Longhand properties, so only the sides change. */
+.sheet-head, .sheet-notepad, .sheet-list, .sheet-draft, .modal-head {
+  padding-left: calc(0.7rem + env(safe-area-inset-left, 0px));
+  padding-right: calc(0.7rem + env(safe-area-inset-right, 0px));
+}
+.sheet-notepad { padding-left: calc(0.2rem + env(safe-area-inset-left, 0px)); padding-right: calc(0.2rem + env(safe-area-inset-right, 0px)); }
+.sheet-list, .sheet-draft { padding-left: calc(0.5rem + env(safe-area-inset-left, 0px)); padding-right: calc(0.5rem + env(safe-area-inset-right, 0px)); }
+.chat-sheet-head, .chat-sheet .chat-panel, .modal-head, .modal-body {
+  padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+  padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+}
+/* The bottom sheet never reaches up under the notch / status bar */
+.modal { max-height: min(92vh, calc(100vh - env(safe-area-inset-top, 0px) - 0.5rem)); max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 0.5rem)); }
+@media (min-width: 720px) {
+  .modal { max-height: 88vh; }
+}
