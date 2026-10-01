@@ -768,6 +768,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .qs--below .qs-pop { top: calc(100% + 0.4rem); right: 0; }
 .qs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
 .qs-grid--single { grid-template-columns: minmax(0, 1fr); }
+.qs-grid--special { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border, rgba(128,128,128,0.35)); }
 .qs-chip {
   width: 100%; margin: 0; min-height: 44px; padding: 0.4rem 0.6rem;
   font-size: 0.95rem; line-height: 1.2; border-radius: 12px; border-color: var(--dot);

@@ -48,6 +48,9 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
   const [unread, setUnread] = useState(0);
   const [toasts, setToasts] = useState([]);
   const [localMsgs, setLocalMsgs] = useState([]);
+  // Special statements: the server includes them in my own part of the state
+  // only if I have access; everyone else gets none.
+  const special = useMemo(() => state.me?.specialPresets || [], [state.me?.specialPresets]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -100,10 +103,10 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
   // Sound files are fetched ahead of time (after the first tap unlocks audio)
   // so a statement's own sound plays without a delay.
   useEffect(() => {
-    const preload = () => preloadChatSounds(CHAT_PRESETS.map((p) => p.sound));
+    const preload = () => preloadChatSounds([...CHAT_PRESETS, ...special].map((p) => p.sound));
     window.addEventListener("pointerdown", preload, { once: true });
     return () => window.removeEventListener("pointerdown", preload);
-  }, []);
+  }, [special]);
 
   const clearToasts = useCallback(() => {
     timers.current.forEach(clearTimeout);
@@ -127,7 +130,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
     setToasts((q) => [...q, ...others.map((m) => ({ id: m.id, playerId: m.playerId, name: m.name, text: m.text, presetId: m.presetId }))]);
     // One sound per batch: the newest message's own sound, or the default.
     const last = others[others.length - 1];
-    playChatSound(findChatPreset(last.presetId)?.sound);
+    playChatSound(findChatPreset(last.presetId)?.sound || last.sound);
   }, [state.chat, playerId]);
 
   // Messages I just sent show up at once; drop them once the poll has them.
@@ -226,7 +229,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
 
   return {
     wide, open, setOpen, expanded, setExpanded, panelRef, unread, toasts, openChat, dismissToast, typing, maxVisible,
-    messages, canSend, playerId, draft, setDraft, sending, error, setError, send, sendPreset, pickerId, setPickerId, awayIds, colors,
+    messages, canSend, playerId, special, draft, setDraft, sending, error, setError, send, sendPreset, pickerId, setPickerId, awayIds, colors,
   };
 }
 
@@ -237,7 +240,7 @@ export function useChat({ state, code, cred, sheetOpen, onOpenRequest }) {
 // at the very top of the screen), as a grid of big chips. Tapping a chip sends
 // that statement at once. Only one picker is ever open (see `pickerId`).
 export function QuickPicker({ chat, id, placement = "above" }) {
-  const { pickerId, setPickerId, sendPreset, canSend } = chat;
+  const { pickerId, setPickerId, sendPreset, canSend, special } = chat;
   const open = pickerId === id;
   const [busyId, setBusyId] = useState(null);
   const [sentId, setSentId] = useState(null);
@@ -288,7 +291,7 @@ export function QuickPicker({ chat, id, placement = "above" }) {
   }, [busyId, sentId, sendPreset, setPickerId]);
 
   if (!canSend) return null;
-  const single = CHAT_PRESETS.some((p) => Array.from(p.text).length > LONG_STATEMENT);
+  const single = [...CHAT_PRESETS, ...special].some((p) => Array.from(p.text).length > LONG_STATEMENT);
 
   return (
     <div className={`qs qs--${id} qs--${placement}`} ref={rootRef}>
@@ -305,23 +308,26 @@ export function QuickPicker({ chat, id, placement = "above" }) {
       </button>
       {open && (
         <div className="qs-pop" role="group" aria-label="Quick statements">
-          <div className={`qs-grid${single ? " qs-grid--single" : ""}`}>
-            {CHAT_PRESETS.map((p) => {
-              const state = sentId === p.id ? "sent" : busyId === p.id ? "sending" : "idle";
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`secondary qs-chip qs-chip--${state}`}
-                  onClick={() => choose(p)}
-                  disabled={!!busyId || !!sentId}
-                  aria-label={state === "idle" ? p.text : state === "sending" ? `Sending: ${p.text}` : `Sent: ${p.text}`}
-                >
-                  {state === "sending" ? "Sending…" : state === "sent" ? "✓ Sent" : p.text}
-                </button>
-              );
-            })}
-          </div>
+          {[CHAT_PRESETS, special].map((list, i) => list.length > 0 && (
+            <div key={i} className={`qs-grid${single ? " qs-grid--single" : ""}${i ? " qs-grid--special" : ""}`}>
+              {list.map((p) => {
+                const state = sentId === p.id ? "sent" : busyId === p.id ? "sending" : "idle";
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    dir="auto"
+                    className={`secondary qs-chip qs-chip--${state}`}
+                    onClick={() => choose(p)}
+                    disabled={!!busyId || !!sentId}
+                    aria-label={state === "idle" ? p.text : state === "sending" ? `Sending: ${p.text}` : `Sent: ${p.text}`}
+                  >
+                    {state === "sending" ? "Sending…" : state === "sent" ? "✓ Sent" : p.text}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
           {error && <p className="error small qs-error" role="alert">{error}</p>}
         </div>
       )}
@@ -385,7 +391,7 @@ function ChatMessage({ m, mine, label, color }) {
       onContextMenu={onContextMenu}
     >
       <span className="chat-name"><Swatch color={color} />{label}</span>
-      <span className="chat-text">{m.text}</span>
+      <span className="chat-text" dir="auto">{m.text}</span>
       {copied && <span className="chat-copied" role="status">Copied</span>}
     </li>
   );
@@ -562,12 +568,12 @@ export function ChatDock({ chat, hidden }) {
           {alert ? (
             <>
               <span className="chat-dock-name"><Swatch color={chat.colors[alert.playerId]} />{alert.name}</span>
-              <span className="chat-dock-preview chat-dock-preview--alert">{alert.text}</span>
+              <span className="chat-dock-preview chat-dock-preview--alert" dir="auto">{alert.text}</span>
             </>
           ) : (
             <>
               <span className="chat-dock-label">Chat</span>
-              <span className="chat-dock-preview">{preview}</span>
+              <span className="chat-dock-preview" dir="auto">{preview}</span>
             </>
           )}
           {unread > 0 && <span className="chat-badge">{unread > 99 ? "99+" : unread}</span>}
@@ -740,7 +746,7 @@ function ToastItem({ t, chat }) {
     >
       <button type="button" className="chat-toast-open" onClick={chat.openChat}>
         <span className="chat-toast-name"><Swatch color={chat.colors[t.playerId]} />{t.name}</span>
-        <span className="chat-toast-text">{t.text}</span>
+        <span className="chat-toast-text" dir="auto">{t.text}</span>
       </button>
       <button type="button" className="chat-toast-dismiss" onClick={() => chat.dismissToast(t.id)} aria-label={`Dismiss message from ${t.name}`}>✕</button>
     </div>
